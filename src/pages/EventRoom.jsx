@@ -19,33 +19,42 @@ export default function EventRoom() {
 
   const bottomRef = useRef(null)
 
-  /* 🔥 SOCKET CONNECTION */
+  /* 🔥 SOCKET CONNECTION (FIXED) */
   useEffect(() => {
     if (!user || !id || !token) return
 
+    console.log("🔥 Connecting socket...")
+
     socket.connect()
+
+    socket.on("connect", () => {
+      console.log("✅ SOCKET CONNECTED:", socket.id)
+
+      socket.emit("joinRoom", {
+        room: id,
+        username: user.username,
+        role: user.role,
+        token
+      })
+    })
 
     socket.off("loadMessages")
     socket.off("newMessage")
     socket.off("roomUsers")
 
-    socket.emit("joinRoom", {
-      room: id,
-      username: user.username,
-      role: user.role,
-      token
-    })
-
     const handleLoadMessages = (msgs) => {
+      console.log("📦 Messages:", msgs)
       setMessages(msgs || [])
     }
 
     const handleNewMessage = (msg) => {
+      console.log("💬 Incoming:", msg)
       if (msg.room !== id) return
       setMessages(prev => [...prev, msg])
     }
 
     const handleRoomUsers = (usersList) => {
+      console.log("👥 Users:", usersList)
       setUsers(usersList || [])
     }
 
@@ -54,6 +63,7 @@ export default function EventRoom() {
     socket.on("roomUsers", handleRoomUsers)
 
     return () => {
+      socket.off("connect")
       socket.off("loadMessages", handleLoadMessages)
       socket.off("newMessage", handleNewMessage)
       socket.off("roomUsers", handleRoomUsers)
@@ -66,11 +76,11 @@ export default function EventRoom() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  /* LOAD PRODUCTS */
+  /* 🔥 FIXED PRODUCTS URL */
   const loadProducts = async (vendorId) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/products/${vendorId}`
+        `${import.meta.env.VITE_API_URL}/products/${vendorId}` // ✅ FIXED
       )
       const data = await res.json()
       setProducts(data)
@@ -82,6 +92,8 @@ export default function EventRoom() {
   /* SEND MESSAGE */
   const sendMessage = () => {
     if (!input.trim()) return
+
+    console.log("📤 Sending:", input)
 
     socket.emit("sendMessage", {
       room: id,
