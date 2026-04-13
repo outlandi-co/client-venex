@@ -6,7 +6,6 @@ import EventQRCode from "../components/EventQRCode"
 export default function EventRoom() {
   const { id } = useParams()
 
-  /* 🔥 FIX: Initialize user safely (NO useEffect needed) */
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem("venex_user")
@@ -21,13 +20,18 @@ export default function EventRoom() {
   const [input, setInput] = useState("")
   const [type, setType] = useState("general")
 
+  const [nameInput, setNameInput] = useState("")
+  const [roleInput, setRoleInput] = useState("customer")
+
   const bottomRef = useRef(null)
 
   /* ================= CREATE USER ================= */
   const createUser = () => {
+    if (!nameInput.trim()) return
+
     const newUser = {
-      username: "Guest-" + Math.floor(Math.random() * 1000),
-      role: "guest"
+      username: nameInput,
+      role: roleInput
     }
 
     localStorage.setItem("venex_user", JSON.stringify(newUser))
@@ -42,7 +46,8 @@ export default function EventRoom() {
 
     socket.emit("joinRoom", {
       room: id,
-      username: user.username
+      username: user.username,
+      role: user.role
     })
 
     socket.on("loadMessages", (msgs) => {
@@ -70,7 +75,7 @@ export default function EventRoom() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  /* ================= SEND MESSAGE ================= */
+  /* ================= SEND ================= */
   const sendMessage = () => {
     if (!input.trim() || !user) return
 
@@ -78,7 +83,7 @@ export default function EventRoom() {
       room: id,
       username: user.username,
       text: input,
-      role: user.role || "guest",
+      role: user.role,
       type,
       category: type
     })
@@ -86,23 +91,73 @@ export default function EventRoom() {
     setInput("")
   }
 
-  /* ================= COLOR SYSTEM ================= */
+  /* ================= ROLE COLORS ================= */
+  const getRoleColor = (role) => {
+    switch (role) {
+      case "vendor": return "#22c55e"
+      case "coordinator": return "#a855f7"
+      default: return "#3b82f6"
+    }
+  }
+
+  /* ================= MESSAGE COLORS ================= */
   const getColor = (type) => {
     switch (type) {
-      case "product": return "#22c55e"
-      case "service": return "#3b82f6"
-      case "event": return "#f59e0b"
-      case "request": return "#ef4444"
+      case "product": return "#14532d"
+      case "service": return "#1e3a8a"
+      case "event": return "#78350f"
+      case "request": return "#7f1d1d"
       default: return "#1e293b"
     }
   }
 
-  /* ================= USER NOT SET ================= */
+  /* ================= USER ENTRY ================= */
   if (!user) {
     return (
       <div style={{ padding: 20 }}>
         <h2>Join Event</h2>
-        <button onClick={createUser}>Enter Chat</button>
+
+        <input
+          placeholder="Enter your name"
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+        />
+
+        <div style={{ marginTop: 10 }}>
+          <label>
+            <input
+              type="radio"
+              value="customer"
+              checked={roleInput === "customer"}
+              onChange={(e) => setRoleInput(e.target.value)}
+            />
+            Customer
+          </label>
+
+          <label style={{ marginLeft: 10 }}>
+            <input
+              type="radio"
+              value="vendor"
+              checked={roleInput === "vendor"}
+              onChange={(e) => setRoleInput(e.target.value)}
+            />
+            Vendor
+          </label>
+
+          <label style={{ marginLeft: 10 }}>
+            <input
+              type="radio"
+              value="coordinator"
+              checked={roleInput === "coordinator"}
+              onChange={(e) => setRoleInput(e.target.value)}
+            />
+            Coordinator
+          </label>
+        </div>
+
+        <button style={{ marginTop: 10 }} onClick={createUser}>
+          Enter Chat
+        </button>
       </div>
     )
   }
@@ -117,36 +172,22 @@ export default function EventRoom() {
     }}>
 
       <h2>🔥 Event: {id}</h2>
-      <p>{user.username} ({user.role})</p>
+
+      <p>
+        <span style={{
+          color: getRoleColor(user.role),
+          fontWeight: "bold"
+        }}>
+          [{user.role.toUpperCase()}]
+        </span>{" "}
+        {user.username}
+      </p>
 
       <EventQRCode eventId={id} />
 
       {/* USERS */}
-      <div style={{
-        marginTop: 10,
-        padding: 10,
-        border: "1px solid #1e293b",
-        borderRadius: 10
-      }}>
+      <div style={{ marginTop: 10 }}>
         <strong>🟢 Live Users ({users.length})</strong>
-
-        <div style={{ marginTop: 5 }}>
-          {users.map((u) => (
-            <span
-              key={u.socketId}
-              style={{
-                marginRight: 10,
-                padding: "4px 8px",
-                borderRadius: 6,
-                background: "#0f172a",
-                border: "1px solid #1e293b",
-                fontSize: 12
-              }}
-            >
-              {u.username}
-            </span>
-          ))}
-        </div>
       </div>
 
       {/* MESSAGES */}
@@ -158,34 +199,40 @@ export default function EventRoom() {
         padding: 10,
         borderRadius: 10
       }}>
-        {messages.map((m, i) => (
-          <div
-            key={m._id || i}
-            style={{
-              display: "flex",
-              justifyContent:
-                m.username === user.username ? "flex-end" : "flex-start",
-              marginBottom: 10
-            }}
-          >
-            <div style={{
-              background: getColor(m.type),
-              padding: 10,
-              borderRadius: 12,
-              maxWidth: "70%"
-            }}>
-              <div style={{ fontSize: 11, opacity: 0.7 }}>
-                {m.role?.toUpperCase()} • {m.type?.toUpperCase()}
-              </div>
+        {messages.map((m, i) => {
+          const isMe = m.username === user.username
 
-              <div style={{ fontWeight: "bold" }}>
-                {m.username || "Unknown"}
-              </div>
+          return (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: isMe ? "flex-end" : "flex-start",
+                marginBottom: 10
+              }}
+            >
+              <div style={{
+                background: getColor(m.type),
+                padding: 10,
+                borderRadius: 12,
+                maxWidth: "70%",
+                border: `1px solid ${getRoleColor(m.role)}`
+              }}>
+                <div style={{
+                  fontSize: 11,
+                  color: getRoleColor(m.role),
+                  fontWeight: "bold"
+                }}>
+                  [{m.role?.toUpperCase()}] {m.username}
+                </div>
 
-              <div>{m.text}</div>
+                <div style={{ marginTop: 4 }}>
+                  {m.text}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         <div ref={bottomRef} />
       </div>
 
