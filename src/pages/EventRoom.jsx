@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom"
 import { useEffect, useState, useRef } from "react"
 import socket from "../services/socket"
+import EventQRCode from "../components/EventQRCode"
 
 export default function EventRoom() {
   const { id } = useParams()
