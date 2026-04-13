@@ -3,7 +3,7 @@ import { QRCodeCanvas } from "qrcode.react"
 export default function EventQRCode({ eventId }) {
 
   /* 🔥 FORCE PRODUCTION URL */
-  const baseURL = "https://client-venex.vercel.app"
+  const baseURL = "https://client-venex.vercel.app/"
 
   const url = `${baseURL}/event/${eventId}`
 
