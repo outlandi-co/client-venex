@@ -6,7 +6,8 @@ import EventQRCode from "../components/EventQRCode"
 export default function EventRoom() {
   const { id } = useParams()
 
-  const [user, setUser] = useState(() => {
+  /* 🔐 LOAD REAL USER */
+  const [user] = useState(() => {
     try {
       const stored = localStorage.getItem("venex_user")
       return stored ? JSON.parse(stored) : null
@@ -15,28 +16,14 @@ export default function EventRoom() {
     }
   })
 
+  const token = localStorage.getItem("venex_token")
+
   const [messages, setMessages] = useState([])
   const [users, setUsers] = useState([])
   const [input, setInput] = useState("")
   const [type, setType] = useState("general")
 
-  const [nameInput, setNameInput] = useState("")
-  const [roleInput, setRoleInput] = useState("customer")
-
   const bottomRef = useRef(null)
-
-  /* ================= CREATE USER ================= */
-  const createUser = () => {
-    if (!nameInput.trim()) return
-
-    const newUser = {
-      username: nameInput,
-      role: roleInput
-    }
-
-    localStorage.setItem("venex_user", JSON.stringify(newUser))
-    setUser(newUser)
-  }
 
   /* ================= SOCKET ================= */
   useEffect(() => {
@@ -47,7 +34,8 @@ export default function EventRoom() {
     socket.emit("joinRoom", {
       room: id,
       username: user.username,
-      role: user.role
+      role: user.role,
+      token
     })
 
     socket.on("loadMessages", (msgs) => {
@@ -68,7 +56,7 @@ export default function EventRoom() {
       socket.off("newMessage")
       socket.off("roomUsers")
     }
-  }, [id, user])
+  }, [id, user, token])
 
   /* ================= AUTO SCROLL ================= */
   useEffect(() => {
@@ -111,53 +99,12 @@ export default function EventRoom() {
     }
   }
 
-  /* ================= USER ENTRY ================= */
+  /* ================= AUTH GUARD ================= */
   if (!user) {
     return (
       <div style={{ padding: 20 }}>
-        <h2>Join Event</h2>
-
-        <input
-          placeholder="Enter your name"
-          value={nameInput}
-          onChange={(e) => setNameInput(e.target.value)}
-        />
-
-        <div style={{ marginTop: 10 }}>
-          <label>
-            <input
-              type="radio"
-              value="customer"
-              checked={roleInput === "customer"}
-              onChange={(e) => setRoleInput(e.target.value)}
-            />
-            Customer
-          </label>
-
-          <label style={{ marginLeft: 10 }}>
-            <input
-              type="radio"
-              value="vendor"
-              checked={roleInput === "vendor"}
-              onChange={(e) => setRoleInput(e.target.value)}
-            />
-            Vendor
-          </label>
-
-          <label style={{ marginLeft: 10 }}>
-            <input
-              type="radio"
-              value="coordinator"
-              checked={roleInput === "coordinator"}
-              onChange={(e) => setRoleInput(e.target.value)}
-            />
-            Coordinator
-          </label>
-        </div>
-
-        <button style={{ marginTop: 10 }} onClick={createUser}>
-          Enter Chat
-        </button>
+        <h2>🔒 Please Login</h2>
+        <a href="/login">Go to Login</a>
       </div>
     )
   }
@@ -173,15 +120,28 @@ export default function EventRoom() {
 
       <h2>🔥 Event: {id}</h2>
 
-      <p>
+      {/* USER HEADER */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{
           color: getRoleColor(user.role),
           fontWeight: "bold"
         }}>
           [{user.role.toUpperCase()}]
-        </span>{" "}
-        {user.username}
-      </p>
+        </span>
+
+        <span>{user.username}</span>
+
+        {/* 🔥 LOGOUT */}
+        <button
+          onClick={() => {
+            localStorage.removeItem("venex_user")
+            localStorage.removeItem("venex_token")
+            window.location.href = "/login"
+          }}
+        >
+          Logout
+        </button>
+      </div>
 
       <EventQRCode eventId={id} />
 
