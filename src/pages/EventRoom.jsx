@@ -3,70 +3,107 @@ import { useEffect, useState, useRef } from "react"
 import socket from "../services/socket"
 
 export default function EventRoom() {
-
   const { id } = useParams()
 
   const [messages, setMessages] = useState([])
+  const [users, setUsers] = useState([]) // 🟢 NEW
+
   const [input, setInput] = useState("")
-  const [username, setUsername] = useState(
-    localStorage.getItem("venex_username") || ""
+  const [type, setType] = useState("general")
+  const [filter, setFilter] = useState("all")
+
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("venex_user")) || null
   )
-  const [joined, setJoined] = useState(!!localStorage.getItem("venex_username"))
+
+  const [username, setUsername] = useState("")
+  const [role, setRole] = useState("guest")
 
   const bottomRef = useRef(null)
 
+  /* ================= SOCKET ================= */
   useEffect(() => {
-    if (!joined) return
+    if (!user) return
 
-    socket.emit("joinRoom", id)
-
-    socket.on("loadMessages", (msgs) => {
-      setMessages(msgs)
+    socket.emit("joinRoom", {
+      room: id,
+      username: user.username
     })
 
+    socket.on("loadMessages", (msgs) => setMessages(msgs))
+
     socket.on("newMessage", (msg) => {
-      setMessages(prev => [...prev, msg])
+      setMessages((prev) => [...prev, msg])
+    })
+
+    socket.on("roomUsers", (users) => {   // 🟢 NEW
+      setUsers(users)
     })
 
     return () => {
-      socket.off("newMessage")
       socket.off("loadMessages")
+      socket.off("newMessage")
+      socket.off("roomUsers") // 🟢 cleanup
     }
+  }, [id, user])
 
-  }, [id, joined])
-
+  /* AUTO SCROLL */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  /* ================= AUTH ================= */
   const handleJoin = () => {
     if (!username.trim()) return
 
-    localStorage.setItem("venex_username", username)
-    setJoined(true)
-  }
-
-  const sendMessage = () => {
-    if (!input.trim()) return
-
-    const msg = {
-      text: input,
-      room: id,
-      username
-    }
-
-    socket.emit("sendMessage", msg)
-    setInput("")
+    const newUser = { username, role }
+    localStorage.setItem("venex_user", JSON.stringify(newUser))
+    setUser(newUser)
   }
 
   const logout = () => {
-    localStorage.removeItem("venex_username")
-    setJoined(false)
-    setUsername("")
+    localStorage.removeItem("venex_user")
+    setUser(null)
   }
 
-  /* ================= JOIN SCREEN ================= */
-  if (!joined) {
+  /* ================= SEND ================= */
+  const sendMessage = () => {
+    if (!input.trim()) return
+
+    socket.emit("sendMessage", {
+      room: id,
+      username: user.username,
+      text: input,
+      role: user.role,
+      type
+    })
+
+    setInput("")
+  }
+
+  /* ================= FILTER ================= */
+  const filteredMessages =
+    filter === "all"
+      ? messages
+      : messages.filter((m) => m.type === filter)
+
+  /* ================= STYLE ================= */
+  const getColor = (type) => {
+    switch (type) {
+      case "product": return "#22c55e"
+      case "service": return "#3b82f6"
+      case "event": return "#f59e0b"
+      case "request": return "#ef4444"
+      default: return "#1e293b"
+    }
+  }
+
+  const getBadge = (m) => {
+    return `${m.role?.toUpperCase() || "USER"} • ${m.type?.toUpperCase() || "GENERAL"}`
+  }
+
+  /* ================= LOGIN ================= */
+  if (!user) {
     return (
       <div style={{
         display: "flex",
@@ -80,29 +117,18 @@ export default function EventRoom() {
         <h2>Join Event: {id}</h2>
 
         <input
-          placeholder="Enter your name"
+          placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          style={{
-            padding: 10,
-            marginTop: 10,
-            borderRadius: 6,
-            border: "none"
-          }}
         />
 
-        <button
-          onClick={handleJoin}
-          style={{
-            marginTop: 10,
-            padding: "10px 20px",
-            background: "#22c55e",
-            border: "none",
-            borderRadius: 6
-          }}
-        >
-          Join Chat
-        </button>
+        <select onChange={(e) => setRole(e.target.value)}>
+          <option value="guest">Guest</option>
+          <option value="customer">Customer</option>
+          <option value="vendor">Vendor</option>
+        </select>
+
+        <button onClick={handleJoin}>Enter</button>
       </div>
     )
   }
@@ -116,53 +142,98 @@ export default function EventRoom() {
       minHeight: "100vh"
     }}>
 
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>🔥 Event: {id}</h2>
-        <button onClick={logout}>Logout</button>
+      <h2>🔥 Event: {id}</h2>
+      <p>{user.username} ({user.role})</p>
+
+      <button onClick={logout}>Logout</button>
+
+      {/* 🟢 LIVE USERS */}
+      <div style={{
+        marginTop: 10,
+        padding: 10,
+        border: "1px solid #1e293b",
+        borderRadius: 10
+      }}>
+        <strong>🟢 Live Users ({users.length})</strong>
+        <div>
+          {users.map((u, i) => (
+            <span key={i} style={{ marginRight: 10 }}>
+              {u.username}
+            </span>
+          ))}
+        </div>
       </div>
 
-      <p style={{ color: "#94a3b8" }}>You are: {username}</p>
+      {/* FILTER */}
+      <select onChange={(e) => setFilter(e.target.value)}>
+        <option value="all">All</option>
+        <option value="product">Products</option>
+        <option value="service">Services</option>
+        <option value="event">Events</option>
+        <option value="request">Requests</option>
+      </select>
 
+      {/* MESSAGES */}
       <div style={{
         height: 400,
         overflowY: "auto",
+        marginTop: 10,
         border: "1px solid #1e293b",
-        borderRadius: 10,
         padding: 10,
-        marginBottom: 10
+        borderRadius: 10
       }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 8 }}>
-            <strong>{m.username || "Anon"}:</strong> {m.text}
+        {filteredMessages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent:
+                m.username === user.username ? "flex-end" : "flex-start",
+              marginBottom: 10
+            }}
+          >
+            <div style={{
+              background: getColor(m.type),
+              padding: 10,
+              borderRadius: 12,
+              maxWidth: "70%"
+            }}>
+              <div style={{ fontSize: 11, opacity: 0.7 }}>
+                {getBadge(m)}
+              </div>
+
+              <div style={{ fontWeight: "bold" }}>
+                {m.username}
+              </div>
+
+              <div>{m.text}</div>
+
+              <div style={{ fontSize: 10 }}>
+                {new Date(m.createdAt).toLocaleTimeString()}
+              </div>
+            </div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
+      {/* INPUT */}
       <div style={{ display: "flex", gap: 10 }}>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type message..."
-          style={{
-            flex: 1,
-            padding: 10,
-            borderRadius: 6,
-            border: "none"
-          }}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
 
-        <button
-          onClick={sendMessage}
-          style={{
-            padding: "10px 20px",
-            background: "#22c55e",
-            border: "none",
-            borderRadius: 6
-          }}
-        >
-          Send
-        </button>
+        <select onChange={(e) => setType(e.target.value)}>
+          <option value="general">General</option>
+          <option value="product">Product</option>
+          <option value="service">Service</option>
+          <option value="event">Event</option>
+          <option value="request">Request</option>
+        </select>
+
+        <button onClick={sendMessage}>Send</button>
       </div>
 
     </div>
