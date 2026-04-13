@@ -17,14 +17,13 @@ export default function EventRoom() {
   const token = localStorage.getItem("venex_token")
 
   const [messages, setMessages] = useState([])
-  const [users, setUsers] = useState([])
+  const [users, setUsers] = useState([]) // ✅ now used
   const [input, setInput] = useState("")
   const [type, setType] = useState("general")
-  const [filter, setFilter] = useState("all")
-  const [selectedUser, setSelectedUser] = useState(null)
 
   const bottomRef = useRef(null)
 
+  /* 🔥 SOCKET CONNECTION */
   useEffect(() => {
     if (!user || !id) return
 
@@ -44,7 +43,7 @@ export default function EventRoom() {
       setMessages(prev => [...prev, msg])
     })
 
-    socket.on("roomUsers", (users) => setUsers(users || []))
+    socket.on("roomUsers", (usersList) => setUsers(usersList || []))
 
     return () => {
       socket.off("loadMessages")
@@ -63,8 +62,8 @@ export default function EventRoom() {
     socket.emit("sendMessage", {
       room: id,
       username: user.username,
-      text: input,
       role: user.role,
+      text: input,
       type,
       category: type
     })
@@ -86,10 +85,6 @@ export default function EventRoom() {
     return "#1e293b"
   }
 
-  const filteredMessages = filter === "all"
-    ? messages
-    : messages.filter(m => m.type === filter)
-
   if (!user) {
     return (
       <div style={{ padding: 20 }}>
@@ -100,112 +95,100 @@ export default function EventRoom() {
   }
 
   return (
-    <div style={{ display: "flex", background: "#020617", color: "white", minHeight: "100vh" }}>
+    <div style={{
+      padding: 20,
+      background: "#020617",
+      color: "white",
+      minHeight: "100vh"
+    }}>
 
-      {/* SIDEBAR */}
-      <div style={{ width: 200, borderRight: "1px solid #1e293b", padding: 10 }}>
-        <h3>Filters</h3>
+      <h2>🔥 Event: {id}</h2>
 
-        {["all", "product", "service", "event", "request"].map(f => (
-          <div
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              cursor: "pointer",
-              marginBottom: 5,
-              color: filter === f ? "#38bdf8" : "white"
-            }}
-          >
-            {f.toUpperCase()}
-          </div>
-        ))}
+      {/* USER HEADER */}
+      <p>
+        <span style={{ color: getRoleColor(user.role), fontWeight: "bold" }}>
+          [{user.role}]
+        </span>{" "}
+        {user.username}
 
-        <h3 style={{ marginTop: 20 }}>Users</h3>
+        <button
+          style={{ marginLeft: 10 }}
+          onClick={() => {
+            localStorage.clear()
+            window.location.href = "/login"
+          }}
+        >
+          Logout
+        </button>
+      </p>
 
-        {users.map(u => (
-          <div
-            key={u.socketId}
-            onClick={() => setSelectedUser(u)}
-            style={{ cursor: "pointer", marginBottom: 5, color: getRoleColor(u.role) }}
-          >
-            {u.username}
-          </div>
-        ))}
-      </div>
+      <EventQRCode eventId={id} />
 
-      {/* CHAT */}
-      <div style={{ flex: 1, padding: 20 }}>
+      {/* ✅ USERS LIST (FIXES ESLINT ERROR) */}
+      <div style={{ marginTop: 10 }}>
+        <strong>🟢 Live Users ({users.length})</strong>
 
-        <h2>🔥 Event: {id}</h2>
-
-        <EventQRCode eventId={id} />
-
-        <div style={{
-          height: 400,
-          overflowY: "auto",
-          marginTop: 10,
-          border: "1px solid #1e293b",
-          padding: 10,
-          borderRadius: 10
-        }}>
-          {filteredMessages.map((m, i) => {
-            const isMe = m.username === user.username
-
-            return (
-              <div key={i} style={{
-                display: "flex",
-                justifyContent: isMe ? "flex-end" : "flex-start",
-                marginBottom: 10
-              }}>
-                <div style={{
-                  background: getColor(m.type),
-                  padding: 10,
-                  borderRadius: 12,
-                  maxWidth: "70%"
-                }}>
-                  <div style={{ fontSize: 11, color: getRoleColor(m.role) }}>
-                    [{m.role}] {m.username}
-                  </div>
-
-                  {m.text}
-                </div>
-              </div>
-            )
-          })}
-          <div ref={bottomRef} />
-        </div>
-
-        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-
-          <select onChange={(e) => setType(e.target.value)}>
-            <option value="general">General</option>
-            <option value="product">Product</option>
-            <option value="service">Service</option>
-            <option value="event">Event</option>
-            <option value="request">Request</option>
-          </select>
-
-          <button onClick={sendMessage}>Send</button>
+        <div style={{ marginTop: 5 }}>
+          {users.map(u => (
+            <span
+              key={u.socketId}
+              style={{
+                marginRight: 10,
+                padding: "4px 8px",
+                borderRadius: 6,
+                background: "#0f172a",
+                border: "1px solid #1e293b",
+                fontSize: 12,
+                color: getRoleColor(u.role)
+              }}
+            >
+              {u.username}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* PROFILE PANEL */}
-      <div style={{ width: 250, borderLeft: "1px solid #1e293b", padding: 10 }}>
-        <h3>Profile</h3>
+      {/* MESSAGES */}
+      <div style={{
+        height: 400,
+        overflowY: "auto",
+        border: "1px solid #1e293b",
+        padding: 10,
+        marginTop: 10
+      }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{
+            marginBottom: 10,
+            background: getColor(m.type),
+            padding: 10,
+            borderRadius: 10
+          }}>
+            <b style={{ color: getRoleColor(m.role) }}>
+              [{m.role}] {m.username}
+            </b>
+            <div>{m.text}</div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
 
-        {selectedUser ? (
-          <>
-            <p><strong>{selectedUser.username}</strong></p>
-            <p>Role: {selectedUser.role}</p>
-          </>
-        ) : (
-          <p>Select a user</p>
-        )}
+      {/* INPUT */}
+      <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        />
+
+        <select onChange={(e) => setType(e.target.value)}>
+          <option value="general">General</option>
+          <option value="product">Product</option>
+          <option value="service">Service</option>
+          <option value="event">Event</option>
+          <option value="request">Request</option>
+        </select>
+
+        <button onClick={sendMessage}>Send</button>
       </div>
 
     </div>

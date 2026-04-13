@@ -6,6 +6,9 @@ import CreateEvent from "./pages/CreateEvent"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 
+/* 🔥 IMPORT PROTECTED ROUTE */
+import ProtectedRoute from "./components/ProtectedRoute"
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -13,7 +16,16 @@ export default function App() {
 
         <Route path="/" element={<Home />} />
         <Route path="/create-event" element={<CreateEvent />} />
-        <Route path="/event/:id" element={<EventRoom />} />
+
+        {/* 🔐 PROTECTED EVENT ROUTE */}
+        <Route
+          path="/event/:id"
+          element={
+            <ProtectedRoute>
+              <EventRoom />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

@@ -11,27 +11,39 @@ export default function Login() {
   })
 
   const handleLogin = async () => {
-    const res = await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/auth/login`,
-      form
-    )
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/login`,
+        form
+      )
 
-    localStorage.setItem("venex_token", res.data.token)
-    localStorage.setItem("venex_user", JSON.stringify(res.data.user))
+      console.log("LOGIN RESPONSE:", res.data)
 
-    navigate("/create-event")
+      /* 🔥 STORE TOKEN + USER */
+      localStorage.setItem("venex_token", res.data.token)
+      localStorage.setItem("venex_user", JSON.stringify(res.data.user))
+
+      navigate("/create-event")
+
+    } catch (err) {
+      console.error(err)
+      alert("Login failed")
+    }
   }
 
   return (
     <div style={{ padding: 20 }}>
       <h2>Login</h2>
 
-      <input placeholder="Email"
-        onChange={e => setForm({...form, email: e.target.value})}
+      <input
+        placeholder="Email"
+        onChange={e => setForm({ ...form, email: e.target.value })}
       />
 
-      <input type="password" placeholder="Password"
-        onChange={e => setForm({...form, password: e.target.value})}
+      <input
+        type="password"
+        placeholder="Password"
+        onChange={e => setForm({ ...form, password: e.target.value })}
       />
 
       <button onClick={handleLogin}>Login</button>
