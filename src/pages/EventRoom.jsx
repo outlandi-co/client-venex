@@ -19,31 +19,32 @@ export default function EventRoom() {
 
   const bottomRef = useRef(null)
 
-  /* 🔥 SOCKET CONNECTION (FIXED) */
+  /* 🔥 SOCKET CONNECTION (FINAL FIX) */
   useEffect(() => {
     if (!user || !id || !token) return
 
-    console.log("🔥 Connecting socket...")
+    console.log("🔥 INIT SOCKET")
 
-    socket.connect()
-
-    socket.on("connect", () => {
-      console.log("✅ SOCKET CONNECTED:", socket.id)
+    const join = () => {
+      console.log("📡 Joining room:", id)
 
       socket.emit("joinRoom", {
         room: id,
         username: user.username,
         role: user.role,
-        token
+        token // ✅ CRITICAL
       })
-    })
+    }
 
-    socket.off("loadMessages")
-    socket.off("newMessage")
-    socket.off("roomUsers")
+    if (socket.connected) {
+      join()
+    } else {
+      socket.connect()
+      socket.on("connect", join)
+    }
 
     const handleLoadMessages = (msgs) => {
-      console.log("📦 Messages:", msgs)
+      console.log("📦 Loaded:", msgs)
       setMessages(msgs || [])
     }
 
@@ -53,20 +54,24 @@ export default function EventRoom() {
       setMessages(prev => [...prev, msg])
     }
 
-    const handleRoomUsers = (usersList) => {
-      console.log("👥 Users:", usersList)
-      setUsers(usersList || [])
+    const handleUsers = (u) => {
+      console.log("👥 Users:", u)
+      setUsers(u || [])
     }
+
+    socket.off("loadMessages")
+    socket.off("newMessage")
+    socket.off("roomUsers")
 
     socket.on("loadMessages", handleLoadMessages)
     socket.on("newMessage", handleNewMessage)
-    socket.on("roomUsers", handleRoomUsers)
+    socket.on("roomUsers", handleUsers)
 
     return () => {
-      socket.off("connect")
+      socket.off("connect", join)
       socket.off("loadMessages", handleLoadMessages)
       socket.off("newMessage", handleNewMessage)
-      socket.off("roomUsers", handleRoomUsers)
+      socket.off("roomUsers", handleUsers)
     }
 
   }, [id, user, token])
@@ -76,11 +81,11 @@ export default function EventRoom() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  /* 🔥 FIXED PRODUCTS URL */
+  /* PRODUCTS */
   const loadProducts = async (vendorId) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/products/${vendorId}` // ✅ FIXED
+        `${import.meta.env.VITE_API_URL}/products/${vendorId}`
       )
       const data = await res.json()
       setProducts(data)
@@ -118,19 +123,10 @@ export default function EventRoom() {
   }
 
   return (
-    <div style={{
-      display: "flex",
-      height: "100vh",
-      background: "#020617",
-      color: "white"
-    }}>
+    <div style={{ display: "flex", height: "100vh", background: "#020617", color: "white" }}>
 
       {/* USERS */}
-      <div style={{
-        width: 220,
-        borderRight: "1px solid #1e293b",
-        padding: 15
-      }}>
+      <div style={{ width: 220, borderRight: "1px solid #1e293b", padding: 15 }}>
         <h3>👥 Users</h3>
 
         {users.map(u => (
@@ -142,11 +138,7 @@ export default function EventRoom() {
                 loadProducts(u.userId)
               }
             }}
-            style={{
-              cursor: "pointer",
-              marginBottom: 8,
-              color: getRoleColor(u.role)
-            }}
+            style={{ cursor: "pointer", marginBottom: 8, color: getRoleColor(u.role) }}
           >
             {u.username}
           </div>
@@ -154,11 +146,7 @@ export default function EventRoom() {
       </div>
 
       {/* CHAT */}
-      <div style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column"
-      }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
 
         <div style={{
           padding: 15,
@@ -186,11 +174,7 @@ export default function EventRoom() {
           <EventQRCode eventId={id} />
         </div>
 
-        <div style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: 15
-        }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: 15 }}>
           {messages.map((m, i) => (
             <div key={i} style={{
               marginBottom: 10,
@@ -207,11 +191,7 @@ export default function EventRoom() {
           <div ref={bottomRef} />
         </div>
 
-        <div style={{
-          display: "flex",
-          padding: 10,
-          borderTop: "1px solid #1e293b"
-        }}>
+        <div style={{ display: "flex", padding: 10, borderTop: "1px solid #1e293b" }}>
           <input
             style={{ flex: 1 }}
             value={input}
@@ -229,12 +209,8 @@ export default function EventRoom() {
         </div>
       </div>
 
-      {/* MARKETPLACE */}
-      <div style={{
-        width: 260,
-        borderLeft: "1px solid #1e293b",
-        padding: 15
-      }}>
+      {/* MARKET */}
+      <div style={{ width: 260, borderLeft: "1px solid #1e293b", padding: 15 }}>
         <h3>🛍 Marketplace</h3>
 
         {selectedUser ? (

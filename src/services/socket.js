@@ -1,15 +1,17 @@
 import { io } from "socket.io-client"
 
-/* 🔥 STRIP /api FOR SOCKET ONLY */
-const BASE_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace("/api", "")
-  : "http://localhost:5051"
+/* 🔥 FORCE CORRECT URL */
+const socket = io("https://server-venex.onrender.com", {
+  transports: ["websocket"],
+  autoConnect: true
+})
 
-console.log("🔌 SOCKET URL:", BASE_URL)
+socket.on("connect", () => {
+  console.log("✅ SOCKET CONNECTED:", socket.id)
+})
 
-const socket = io(BASE_URL, {
-  autoConnect: false,
-  transports: ["websocket"]
+socket.on("connect_error", (err) => {
+  console.error("❌ SOCKET ERROR:", err.message)
 })
 
 export default socket
