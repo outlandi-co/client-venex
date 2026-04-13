@@ -19,11 +19,15 @@ export default function EventRoom() {
 
   const bottomRef = useRef(null)
 
-  /* 🔥 SOCKET */
+  /* 🔥 SOCKET CONNECTION */
   useEffect(() => {
     if (!user || !id || !token) return
 
     socket.connect()
+
+    socket.off("loadMessages")
+    socket.off("newMessage")
+    socket.off("roomUsers")
 
     socket.emit("joinRoom", {
       room: id,
@@ -32,14 +36,18 @@ export default function EventRoom() {
       token
     })
 
-    const handleLoadMessages = (msgs) => setMessages(msgs || [])
+    const handleLoadMessages = (msgs) => {
+      setMessages(msgs || [])
+    }
 
     const handleNewMessage = (msg) => {
       if (msg.room !== id) return
       setMessages(prev => [...prev, msg])
     }
 
-    const handleRoomUsers = (usersList) => setUsers(usersList || [])
+    const handleRoomUsers = (usersList) => {
+      setUsers(usersList || [])
+    }
 
     socket.on("loadMessages", handleLoadMessages)
     socket.on("newMessage", handleNewMessage)
@@ -53,11 +61,12 @@ export default function EventRoom() {
 
   }, [id, user, token])
 
+  /* AUTO SCROLL */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  /* 🔥 LOAD PRODUCTS */
+  /* LOAD PRODUCTS */
   const loadProducts = async (vendorId) => {
     try {
       const res = await fetch(
@@ -70,13 +79,17 @@ export default function EventRoom() {
     }
   }
 
+  /* SEND MESSAGE */
   const sendMessage = () => {
     if (!input.trim()) return
 
     socket.emit("sendMessage", {
       room: id,
+      username: user.username,
+      role: user.role,
       text: input,
-      type
+      type,
+      category: type
     })
 
     setInput("")
@@ -100,7 +113,7 @@ export default function EventRoom() {
       color: "white"
     }}>
 
-      {/* LEFT: USERS */}
+      {/* USERS */}
       <div style={{
         width: 220,
         borderRight: "1px solid #1e293b",
@@ -113,16 +126,14 @@ export default function EventRoom() {
             key={u.socketId}
             onClick={() => {
               setSelectedUser(u)
-
               if (u.role === "vendor" && u.userId) {
                 loadProducts(u.userId)
               }
             }}
             style={{
-              marginBottom: 8,
               cursor: "pointer",
-              color: getRoleColor(u.role),
-              fontSize: 14
+              marginBottom: 8,
+              color: getRoleColor(u.role)
             }}
           >
             {u.username}
@@ -130,47 +141,39 @@ export default function EventRoom() {
         ))}
       </div>
 
-      {/* CENTER: CHAT */}
+      {/* CHAT */}
       <div style={{
         flex: 1,
         display: "flex",
         flexDirection: "column"
       }}>
 
-        {/* HEADER */}
         <div style={{
           padding: 15,
           borderBottom: "1px solid #1e293b",
           display: "flex",
           justifyContent: "space-between"
         }}>
-          <div>
-            🔥 <strong>{id}</strong>
-          </div>
+          <strong>🔥 {id}</strong>
 
           <div>
-            <span style={{ color: getRoleColor(user.role) }}>
-              [{user.role}] {user.username}
-            </span>
-
+            [{user.role}] {user.username}
             <button
-              style={{ marginLeft: 10 }}
               onClick={() => {
                 localStorage.clear()
                 window.location.href = "/login"
               }}
+              style={{ marginLeft: 10 }}
             >
               Logout
             </button>
           </div>
         </div>
 
-        {/* QR */}
-        <div style={{ padding: 10, textAlign: "center" }}>
+        <div style={{ padding: 10 }}>
           <EventQRCode eventId={id} />
         </div>
 
-        {/* MESSAGES */}
         <div style={{
           flex: 1,
           overflowY: "auto",
@@ -183,25 +186,19 @@ export default function EventRoom() {
               padding: 10,
               borderRadius: 10
             }}>
-              <div style={{
-                fontSize: 12,
-                color: getRoleColor(m.role)
-              }}>
+              <div style={{ fontSize: 12 }}>
                 [{m.role}] {m.username}
               </div>
-
               <div>{m.text}</div>
             </div>
           ))}
           <div ref={bottomRef} />
         </div>
 
-        {/* INPUT */}
         <div style={{
           display: "flex",
           padding: 10,
-          borderTop: "1px solid #1e293b",
-          gap: 10
+          borderTop: "1px solid #1e293b"
         }}>
           <input
             style={{ flex: 1 }}
@@ -220,7 +217,7 @@ export default function EventRoom() {
         </div>
       </div>
 
-      {/* RIGHT PANEL */}
+      {/* MARKETPLACE */}
       <div style={{
         width: 260,
         borderLeft: "1px solid #1e293b",
@@ -230,33 +227,27 @@ export default function EventRoom() {
 
         {selectedUser ? (
           <>
-            <p>
-              Viewing: <strong>{selectedUser.username}</strong>
-            </p>
+            <p>Viewing: {selectedUser.username}</p>
 
             {products.length === 0 ? (
-              <p style={{ fontSize: 12, opacity: 0.6 }}>
-                No products yet
-              </p>
+              <p>No products</p>
             ) : (
               products.map(p => (
                 <div key={p._id} style={{
+                  marginBottom: 10,
                   border: "1px solid #1e293b",
                   padding: 10,
-                  borderRadius: 10,
-                  marginBottom: 10
+                  borderRadius: 10
                 }}>
                   <strong>{p.name}</strong>
                   <p>${p.price}</p>
-                  <p style={{ fontSize: 12 }}>{p.description}</p>
+                  <p>{p.description}</p>
                 </div>
               ))
             )}
           </>
         ) : (
-          <p style={{ fontSize: 12, opacity: 0.6 }}>
-            Click a vendor to view products
-          </p>
+          <p>Click a vendor</p>
         )}
       </div>
 
