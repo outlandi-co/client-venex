@@ -1,9 +1,15 @@
 import { io } from "socket.io-client"
 
-const socket = io(import.meta.env.VITE_API_URL, {
-  transports: ["polling", "websocket"], // 👈 polling FIRST
+const URL = import.meta.env.VITE_API_URL
+
+console.log("🌐 SOCKET URL:", URL)
+
+/* 🔥 SINGLE GLOBAL SOCKET INSTANCE */
+const socket = io(URL, {
+  transports: ["websocket"],   // 🔥 FORCE WEBSOCKET (IMPORTANT)
+  autoConnect: false,
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: 10,
   reconnectionDelay: 1000
 })
 
