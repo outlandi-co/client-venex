@@ -27,40 +27,34 @@ export default function EventRoom() {
     if (!user) return
 
     console.log("🔌 Connecting socket...")
+
     socket.connect()
 
-    console.log("📡 JOIN ROOM:", id)
+    socket.on("connect", () => {
+      console.log("✅ SOCKET CONNECTED:", socket.id)
 
-    socket.emit("joinRoom", {
-      room: id,
-      username: user.username
+      console.log("📡 JOINING ROOM:", id)
+
+      socket.emit("joinRoom", {
+        room: id,
+        username: user.username
+      })
     })
 
-    /* CLEAN OLD LISTENERS */
+    /* CLEAN LISTENERS */
     socket.off("loadMessages")
     socket.off("newMessage")
     socket.off("roomUsers")
 
     socket.on("loadMessages", (msgs) => {
-      console.log("📦 LOADED:", msgs)
+      console.log("📦 LOADED MESSAGES:", msgs)
       setMessages(msgs)
     })
 
     socket.on("newMessage", (msg) => {
-      console.log("📥 RECEIVED:", msg)
+      console.log("📥 RECEIVED MESSAGE:", msg)
 
-      setMessages((prev) => {
-        const exists = prev.find(
-          (m) =>
-            m.text === msg.text &&
-            m.username === msg.username &&
-            m.createdAt === msg.createdAt
-        )
-
-        if (exists) return prev
-
-        return [...prev, msg]
-      })
+      setMessages((prev) => [...prev, msg])
     })
 
     socket.on("roomUsers", (users) => {
@@ -69,6 +63,7 @@ export default function EventRoom() {
     })
 
     return () => {
+      socket.off("connect")
       socket.off("loadMessages")
       socket.off("newMessage")
       socket.off("roomUsers")
@@ -107,13 +102,15 @@ export default function EventRoom() {
       createdAt: new Date().toISOString()
     }
 
-    console.log("🚀 SENDING:", payload)
+    console.log("🚀 SENDING MESSAGE:", payload)
 
-    /* 🔥 SHOW MESSAGE INSTANTLY */
+    /* SHOW MESSAGE INSTANTLY */
     setMessages((prev) => [...prev, payload])
 
-    /* 🔥 SEND TO BACKEND */
-    socket.emit("sendMessage", payload)
+    /* SMALL DELAY ENSURES ROOM JOINED */
+    setTimeout(() => {
+      socket.emit("sendMessage", payload)
+    }, 100)
 
     setInput("")
   }
