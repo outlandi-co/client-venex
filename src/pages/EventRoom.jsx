@@ -6,26 +6,22 @@ import EventQRCode from "../components/EventQRCode"
 export default function EventRoom() {
   const { id } = useParams()
 
-  const [user] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("venex_user"))
-    } catch {
-      return null
-    }
-  })
-
+  const user = JSON.parse(localStorage.getItem("venex_user"))
   const token = localStorage.getItem("venex_token")
 
   const [messages, setMessages] = useState([])
-  const [users, setUsers] = useState([]) // ✅ now used
+  const [users, setUsers] = useState([])
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [products, setProducts] = useState([])
+
   const [input, setInput] = useState("")
   const [type, setType] = useState("general")
 
   const bottomRef = useRef(null)
 
-  /* 🔥 SOCKET CONNECTION */
+  /* 🔥 SOCKET */
   useEffect(() => {
-    if (!user || !id) return
+    if (!user || !id || !token) return
 
     socket.connect()
 
@@ -36,36 +32,51 @@ export default function EventRoom() {
       token
     })
 
-    socket.on("loadMessages", (msgs) => setMessages(msgs || []))
+    const handleLoadMessages = (msgs) => setMessages(msgs || [])
 
-    socket.on("newMessage", (msg) => {
+    const handleNewMessage = (msg) => {
       if (msg.room !== id) return
       setMessages(prev => [...prev, msg])
-    })
+    }
 
-    socket.on("roomUsers", (usersList) => setUsers(usersList || []))
+    const handleRoomUsers = (usersList) => setUsers(usersList || [])
+
+    socket.on("loadMessages", handleLoadMessages)
+    socket.on("newMessage", handleNewMessage)
+    socket.on("roomUsers", handleRoomUsers)
 
     return () => {
-      socket.off("loadMessages")
-      socket.off("newMessage")
-      socket.off("roomUsers")
+      socket.off("loadMessages", handleLoadMessages)
+      socket.off("newMessage", handleNewMessage)
+      socket.off("roomUsers", handleRoomUsers)
     }
+
   }, [id, user, token])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  /* 🔥 LOAD PRODUCTS */
+  const loadProducts = async (vendorId) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/products/${vendorId}`
+      )
+      const data = await res.json()
+      setProducts(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const sendMessage = () => {
     if (!input.trim()) return
 
     socket.emit("sendMessage", {
       room: id,
-      username: user.username,
-      role: user.role,
       text: input,
-      type,
-      category: type
+      type
     })
 
     setInput("")
@@ -77,118 +88,176 @@ export default function EventRoom() {
     return "#3b82f6"
   }
 
-  const getColor = (type) => {
-    if (type === "product") return "#14532d"
-    if (type === "service") return "#1e3a8a"
-    if (type === "event") return "#78350f"
-    if (type === "request") return "#7f1d1d"
-    return "#1e293b"
-  }
-
   if (!user) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>🔒 Please Login</h2>
-        <a href="/login">Login</a>
-      </div>
-    )
+    return <div style={{ padding: 40 }}>Login required</div>
   }
 
   return (
     <div style={{
-      padding: 20,
+      display: "flex",
+      height: "100vh",
       background: "#020617",
-      color: "white",
-      minHeight: "100vh"
+      color: "white"
     }}>
 
-      <h2>🔥 Event: {id}</h2>
+      {/* LEFT: USERS */}
+      <div style={{
+        width: 220,
+        borderRight: "1px solid #1e293b",
+        padding: 15
+      }}>
+        <h3>👥 Users</h3>
 
-      {/* USER HEADER */}
-      <p>
-        <span style={{ color: getRoleColor(user.role), fontWeight: "bold" }}>
-          [{user.role}]
-        </span>{" "}
-        {user.username}
+        {users.map(u => (
+          <div
+            key={u.socketId}
+            onClick={() => {
+              setSelectedUser(u)
 
-        <button
-          style={{ marginLeft: 10 }}
-          onClick={() => {
-            localStorage.clear()
-            window.location.href = "/login"
-          }}
-        >
-          Logout
-        </button>
-      </p>
+              if (u.role === "vendor" && u.userId) {
+                loadProducts(u.userId)
+              }
+            }}
+            style={{
+              marginBottom: 8,
+              cursor: "pointer",
+              color: getRoleColor(u.role),
+              fontSize: 14
+            }}
+          >
+            {u.username}
+          </div>
+        ))}
+      </div>
 
-      <EventQRCode eventId={id} />
+      {/* CENTER: CHAT */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column"
+      }}>
 
-      {/* ✅ USERS LIST (FIXES ESLINT ERROR) */}
-      <div style={{ marginTop: 10 }}>
-        <strong>🟢 Live Users ({users.length})</strong>
+        {/* HEADER */}
+        <div style={{
+          padding: 15,
+          borderBottom: "1px solid #1e293b",
+          display: "flex",
+          justifyContent: "space-between"
+        }}>
+          <div>
+            🔥 <strong>{id}</strong>
+          </div>
 
-        <div style={{ marginTop: 5 }}>
-          {users.map(u => (
-            <span
-              key={u.socketId}
-              style={{
-                marginRight: 10,
-                padding: "4px 8px",
-                borderRadius: 6,
-                background: "#0f172a",
-                border: "1px solid #1e293b",
-                fontSize: 12,
-                color: getRoleColor(u.role)
+          <div>
+            <span style={{ color: getRoleColor(user.role) }}>
+              [{user.role}] {user.username}
+            </span>
+
+            <button
+              style={{ marginLeft: 10 }}
+              onClick={() => {
+                localStorage.clear()
+                window.location.href = "/login"
               }}
             >
-              {u.username}
-            </span>
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* QR */}
+        <div style={{ padding: 10, textAlign: "center" }}>
+          <EventQRCode eventId={id} />
+        </div>
+
+        {/* MESSAGES */}
+        <div style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: 15
+        }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{
+              marginBottom: 10,
+              background: "#0f172a",
+              padding: 10,
+              borderRadius: 10
+            }}>
+              <div style={{
+                fontSize: 12,
+                color: getRoleColor(m.role)
+              }}>
+                [{m.role}] {m.username}
+              </div>
+
+              <div>{m.text}</div>
+            </div>
           ))}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* INPUT */}
+        <div style={{
+          display: "flex",
+          padding: 10,
+          borderTop: "1px solid #1e293b",
+          gap: 10
+        }}>
+          <input
+            style={{ flex: 1 }}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          />
+
+          <select onChange={(e) => setType(e.target.value)}>
+            <option value="general">General</option>
+            <option value="product">Product</option>
+            <option value="service">Service</option>
+          </select>
+
+          <button onClick={sendMessage}>Send</button>
         </div>
       </div>
 
-      {/* MESSAGES */}
+      {/* RIGHT PANEL */}
       <div style={{
-        height: 400,
-        overflowY: "auto",
-        border: "1px solid #1e293b",
-        padding: 10,
-        marginTop: 10
+        width: 260,
+        borderLeft: "1px solid #1e293b",
+        padding: 15
       }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{
-            marginBottom: 10,
-            background: getColor(m.type),
-            padding: 10,
-            borderRadius: 10
-          }}>
-            <b style={{ color: getRoleColor(m.role) }}>
-              [{m.role}] {m.username}
-            </b>
-            <div>{m.text}</div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
+        <h3>🛍 Marketplace</h3>
 
-      {/* INPUT */}
-      <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        />
+        {selectedUser ? (
+          <>
+            <p>
+              Viewing: <strong>{selectedUser.username}</strong>
+            </p>
 
-        <select onChange={(e) => setType(e.target.value)}>
-          <option value="general">General</option>
-          <option value="product">Product</option>
-          <option value="service">Service</option>
-          <option value="event">Event</option>
-          <option value="request">Request</option>
-        </select>
-
-        <button onClick={sendMessage}>Send</button>
+            {products.length === 0 ? (
+              <p style={{ fontSize: 12, opacity: 0.6 }}>
+                No products yet
+              </p>
+            ) : (
+              products.map(p => (
+                <div key={p._id} style={{
+                  border: "1px solid #1e293b",
+                  padding: 10,
+                  borderRadius: 10,
+                  marginBottom: 10
+                }}>
+                  <strong>{p.name}</strong>
+                  <p>${p.price}</p>
+                  <p style={{ fontSize: 12 }}>{p.description}</p>
+                </div>
+              ))
+            )}
+          </>
+        ) : (
+          <p style={{ fontSize: 12, opacity: 0.6 }}>
+            Click a vendor to view products
+          </p>
+        )}
       </div>
 
     </div>
