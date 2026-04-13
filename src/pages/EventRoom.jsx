@@ -26,33 +26,34 @@ export default function EventRoom() {
   useEffect(() => {
     if (!user) return
 
-    console.log("🔌 Connecting socket...")
+    console.log("🔌 connecting socket...")
 
     socket.connect()
 
-    socket.on("connect", () => {
-      console.log("✅ SOCKET CONNECTED:", socket.id)
+    /* 🔥 JOIN ROOM IMMEDIATELY */
+    console.log("📡 joining room:", id)
 
-      console.log("📡 JOINING ROOM:", id)
-
-      socket.emit("joinRoom", {
-        room: id,
-        username: user.username
-      })
+    socket.emit("joinRoom", {
+      room: id,
+      username: user.username
     })
 
     /* CLEAN LISTENERS */
     socket.off("loadMessages")
     socket.off("newMessage")
     socket.off("roomUsers")
+    socket.off("debug")
 
     socket.on("loadMessages", (msgs) => {
-      console.log("📦 LOADED MESSAGES:", msgs)
+      console.log("📦 LOADED:", msgs)
       setMessages(msgs)
     })
 
     socket.on("newMessage", (msg) => {
-      console.log("📥 RECEIVED MESSAGE:", msg)
+      console.log("📥 RECEIVED:", msg)
+
+      /* 🔥 FILTER BY ROOM */
+      if (msg.room !== id) return
 
       setMessages((prev) => [...prev, msg])
     })
@@ -62,11 +63,15 @@ export default function EventRoom() {
       setUsers(users)
     })
 
+    socket.on("debug", (data) => {
+      console.log("🧪 DEBUG:", data)
+    })
+
     return () => {
-      socket.off("connect")
       socket.off("loadMessages")
       socket.off("newMessage")
       socket.off("roomUsers")
+      socket.off("debug")
     }
   }, [id, user])
 
@@ -102,15 +107,12 @@ export default function EventRoom() {
       createdAt: new Date().toISOString()
     }
 
-    console.log("🚀 SENDING MESSAGE:", payload)
+    console.log("🚀 SENDING:", payload)
 
-    /* SHOW MESSAGE INSTANTLY */
+    /* SHOW INSTANTLY */
     setMessages((prev) => [...prev, payload])
 
-    /* SMALL DELAY ENSURES ROOM JOINED */
-    setTimeout(() => {
-      socket.emit("sendMessage", payload)
-    }, 100)
+    socket.emit("sendMessage", payload)
 
     setInput("")
   }
