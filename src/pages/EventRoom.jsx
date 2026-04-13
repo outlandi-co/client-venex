@@ -7,7 +7,7 @@ export default function EventRoom() {
   const { id } = useParams()
 
   const [messages, setMessages] = useState([])
-  const [users, setUsers] = useState([]) // 🟢 NEW
+  const [users, setUsers] = useState([])
 
   const [input, setInput] = useState("")
   const [type, setType] = useState("general")
@@ -26,25 +26,40 @@ export default function EventRoom() {
   useEffect(() => {
     if (!user) return
 
+    console.log("🔌 Connecting socket...")
+    socket.connect()
+
+    console.log("📡 JOIN ROOM:", id)
+
     socket.emit("joinRoom", {
       room: id,
       username: user.username
     })
 
-    socket.on("loadMessages", (msgs) => setMessages(msgs))
+    socket.off("loadMessages")
+    socket.off("newMessage")
+    socket.off("roomUsers")
+
+    socket.on("loadMessages", (msgs) => {
+      console.log("📦 LOADED MESSAGES:", msgs)
+      setMessages(msgs)
+    })
 
     socket.on("newMessage", (msg) => {
+      console.log("📥 RECEIVED MESSAGE:", msg)
+
       setMessages((prev) => [...prev, msg])
     })
 
-    socket.on("roomUsers", (users) => {   // 🟢 NEW
+    socket.on("roomUsers", (users) => {
+      console.log("🟢 USERS:", users)
       setUsers(users)
     })
 
     return () => {
       socket.off("loadMessages")
       socket.off("newMessage")
-      socket.off("roomUsers") // 🟢 cleanup
+      socket.off("roomUsers")
     }
   }, [id, user])
 
@@ -71,13 +86,17 @@ export default function EventRoom() {
   const sendMessage = () => {
     if (!input.trim()) return
 
-    socket.emit("sendMessage", {
+    const payload = {
       room: id,
       username: user.username,
       text: input,
       role: user.role,
       type
-    })
+    }
+
+    console.log("🚀 SENDING MESSAGE:", payload)
+
+    socket.emit("sendMessage", payload)
 
     setInput("")
   }
@@ -146,9 +165,11 @@ export default function EventRoom() {
       <h2>🔥 Event: {id}</h2>
       <p>{user.username} ({user.role})</p>
 
+      <EventQRCode eventId={id} />
+
       <button onClick={logout}>Logout</button>
 
-      {/* 🟢 LIVE USERS */}
+      {/* USERS */}
       <div style={{
         marginTop: 10,
         padding: 10,
