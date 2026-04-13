@@ -6,14 +6,33 @@ import EventQRCode from "../components/EventQRCode"
 export default function EventRoom() {
   const { id } = useParams()
 
+  /* 🔥 FIX: Initialize user safely (NO useEffect needed) */
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("venex_user")
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })
+
   const [messages, setMessages] = useState([])
   const [users, setUsers] = useState([])
   const [input, setInput] = useState("")
   const [type, setType] = useState("general")
 
-  const user = JSON.parse(localStorage.getItem("venex_user"))
-
   const bottomRef = useRef(null)
+
+  /* ================= CREATE USER ================= */
+  const createUser = () => {
+    const newUser = {
+      username: "Guest-" + Math.floor(Math.random() * 1000),
+      role: "guest"
+    }
+
+    localStorage.setItem("venex_user", JSON.stringify(newUser))
+    setUser(newUser)
+  }
 
   /* ================= SOCKET ================= */
   useEffect(() => {
@@ -27,7 +46,7 @@ export default function EventRoom() {
     })
 
     socket.on("loadMessages", (msgs) => {
-      setMessages([...msgs])
+      setMessages(msgs || [])
     })
 
     socket.on("newMessage", (msg) => {
@@ -36,7 +55,7 @@ export default function EventRoom() {
     })
 
     socket.on("roomUsers", (users) => {
-      setUsers(users)
+      setUsers(users || [])
     })
 
     return () => {
@@ -46,14 +65,14 @@ export default function EventRoom() {
     }
   }, [id, user])
 
-  /* AUTO SCROLL */
+  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  /* SEND MESSAGE */
+  /* ================= SEND MESSAGE ================= */
   const sendMessage = () => {
-    if (!input.trim()) return
+    if (!input.trim() || !user) return
 
     socket.emit("sendMessage", {
       room: id,
@@ -67,7 +86,7 @@ export default function EventRoom() {
     setInput("")
   }
 
-  /* COLOR SYSTEM */
+  /* ================= COLOR SYSTEM ================= */
   const getColor = (type) => {
     switch (type) {
       case "product": return "#22c55e"
@@ -78,6 +97,17 @@ export default function EventRoom() {
     }
   }
 
+  /* ================= USER NOT SET ================= */
+  if (!user) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h2>Join Event</h2>
+        <button onClick={createUser}>Enter Chat</button>
+      </div>
+    )
+  }
+
+  /* ================= UI ================= */
   return (
     <div style={{
       padding: 20,
@@ -87,7 +117,7 @@ export default function EventRoom() {
     }}>
 
       <h2>🔥 Event: {id}</h2>
-      <p>{user?.username} ({user?.role})</p>
+      <p>{user.username} ({user.role})</p>
 
       <EventQRCode eventId={id} />
 
@@ -149,7 +179,7 @@ export default function EventRoom() {
               </div>
 
               <div style={{ fontWeight: "bold" }}>
-                {m.username}
+                {m.username || "Unknown"}
               </div>
 
               <div>{m.text}</div>
