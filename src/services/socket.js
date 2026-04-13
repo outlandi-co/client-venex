@@ -1,9 +1,12 @@
 import { io } from "socket.io-client"
 
-const SOCKET_URL = import.meta.env.VITE_API_URL.replace("/api", "")
+const URL =
+  import.meta.env.VITE_API_URL?.replace("/api", "") ||
+  "http://localhost:5051"
 
-const socket = io(SOCKET_URL, {
-  autoConnect: false
+const socket = io(URL, {
+  autoConnect: false,
+  transports: ["websocket"]
 })
 
 export default socket
