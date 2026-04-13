@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 
+/* PAGES */
 import Home from "./pages/Home"
 import EventRoom from "./pages/EventRoom"
 import CreateEvent from "./pages/CreateEvent"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
+import VendorDashboard from "./pages/VendorDashboard"
 
-/* 🔥 IMPORT PROTECTED ROUTE */
+/* 🔐 PROTECTED ROUTE */
 import ProtectedRoute from "./components/ProtectedRoute"
 
 export default function App() {
@@ -14,10 +16,21 @@ export default function App() {
     <BrowserRouter>
       <Routes>
 
+        {/* 🏠 PUBLIC */}
         <Route path="/" element={<Home />} />
-        <Route path="/create-event" element={<CreateEvent />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-        {/* 🔐 PROTECTED EVENT ROUTE */}
+        {/* 🔐 PROTECTED */}
+        <Route
+          path="/create-event"
+          element={
+            <ProtectedRoute>
+              <CreateEvent />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/event/:id"
           element={
@@ -27,8 +40,17 @@ export default function App() {
           }
         />
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <VendorDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 🚫 FALLBACK */}
+        <Route path="*" element={<div style={{ padding: 40 }}>404 Not Found</div>} />
 
       </Routes>
     </BrowserRouter>
