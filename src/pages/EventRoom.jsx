@@ -36,19 +36,31 @@ export default function EventRoom() {
       username: user.username
     })
 
+    /* CLEAN OLD LISTENERS */
     socket.off("loadMessages")
     socket.off("newMessage")
     socket.off("roomUsers")
 
     socket.on("loadMessages", (msgs) => {
-      console.log("📦 LOADED MESSAGES:", msgs)
+      console.log("📦 LOADED:", msgs)
       setMessages(msgs)
     })
 
     socket.on("newMessage", (msg) => {
-      console.log("📥 RECEIVED MESSAGE:", msg)
+      console.log("📥 RECEIVED:", msg)
 
-      setMessages((prev) => [...prev, msg])
+      setMessages((prev) => {
+        const exists = prev.find(
+          (m) =>
+            m.text === msg.text &&
+            m.username === msg.username &&
+            m.createdAt === msg.createdAt
+        )
+
+        if (exists) return prev
+
+        return [...prev, msg]
+      })
     })
 
     socket.on("roomUsers", (users) => {
@@ -91,11 +103,16 @@ export default function EventRoom() {
       username: user.username,
       text: input,
       role: user.role,
-      type
+      type,
+      createdAt: new Date().toISOString()
     }
 
-    console.log("🚀 SENDING MESSAGE:", payload)
+    console.log("🚀 SENDING:", payload)
 
+    /* 🔥 SHOW MESSAGE INSTANTLY */
+    setMessages((prev) => [...prev, payload])
+
+    /* 🔥 SEND TO BACKEND */
     socket.emit("sendMessage", payload)
 
     setInput("")
