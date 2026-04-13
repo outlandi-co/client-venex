@@ -3,7 +3,6 @@ import axios from "axios"
 import { useNavigate } from "react-router-dom"
 
 export default function Login() {
-
   const navigate = useNavigate()
 
   const [form, setForm] = useState({
@@ -20,7 +19,7 @@ export default function Login() {
     localStorage.setItem("venex_token", res.data.token)
     localStorage.setItem("venex_user", JSON.stringify(res.data.user))
 
-    navigate("/")
+    navigate("/create-event")
   }
 
   return (

@@ -15,7 +15,6 @@ export default function App() {
         <Route path="/create-event" element={<CreateEvent />} />
         <Route path="/event/:id" element={<EventRoom />} />
 
-        {/* 🔐 AUTH */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
