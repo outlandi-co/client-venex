@@ -26,21 +26,17 @@ export default function EventRoom() {
   useEffect(() => {
     if (!user) return
 
-    console.log("🔌 RESETTING SOCKET CONNECTION...")
+    console.log("🔌 INIT SOCKET")
 
-    /* 🔥 HARD RESET SOCKET */
+    /* 🔥 RESET CLEANLY */
     socket.off()
     socket.disconnect()
     socket.connect()
 
-    /* 🔥 JOIN ROOM AFTER CONNECT */
-    socket.on("connect", () => {
-      console.log("✅ CONNECTED:", socket.id)
-
-      socket.emit("joinRoom", {
-        room: id,
-        username: user.username
-      })
+    /* 🔥 JOIN ROOM */
+    socket.emit("joinRoom", {
+      room: id,
+      username: user.username
     })
 
     /* ================= LISTENERS ================= */
@@ -59,17 +55,28 @@ export default function EventRoom() {
     })
 
     socket.on("roomUsers", (users) => {
-      console.log("🟢 USERS:", users)
       setUsers([...users])
-    })
-
-    socket.on("debug", (data) => {
-      console.log("🧪 DEBUG:", data)
     })
 
     return () => {
       socket.off()
     }
+  }, [id, user])
+
+  /* ================= 🔥 FALLBACK SYNC ================= */
+  useEffect(() => {
+    if (!user) return
+
+    const interval = setInterval(() => {
+      console.log("🔄 fallback sync...")
+
+      socket.emit("joinRoom", {
+        room: id,
+        username: user.username
+      })
+    }, 2000)
+
+    return () => clearInterval(interval)
   }, [id, user])
 
   /* AUTO SCROLL */
