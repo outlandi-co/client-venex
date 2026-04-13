@@ -26,23 +26,24 @@ export default function EventRoom() {
   useEffect(() => {
     if (!user) return
 
-    console.log("🔌 connecting socket...")
+    console.log("🔌 RESETTING SOCKET CONNECTION...")
 
+    /* 🔥 HARD RESET SOCKET */
+    socket.off()
+    socket.disconnect()
     socket.connect()
 
-    /* 🔥 JOIN ROOM IMMEDIATELY */
-    console.log("📡 joining room:", id)
+    /* 🔥 JOIN ROOM AFTER CONNECT */
+    socket.on("connect", () => {
+      console.log("✅ CONNECTED:", socket.id)
 
-    socket.emit("joinRoom", {
-      room: id,
-      username: user.username
+      socket.emit("joinRoom", {
+        room: id,
+        username: user.username
+      })
     })
 
-    /* CLEAN LISTENERS */
-    socket.off("loadMessages")
-    socket.off("newMessage")
-    socket.off("roomUsers")
-    socket.off("debug")
+    /* ================= LISTENERS ================= */
 
     socket.on("loadMessages", (msgs) => {
       console.log("📦 LOADED:", msgs)
@@ -50,19 +51,16 @@ export default function EventRoom() {
     })
 
     socket.on("newMessage", (msg) => {
-  console.log("📥 RECEIVED:", msg)
+      console.log("📥 RECEIVED:", msg)
 
-  if (msg.room !== id) return
+      if (msg.room !== id) return
 
-  setMessages((prev) => {
-    /* 🔥 FORCE NEW ARRAY + PREVENT STALE STATE */
-    return [...prev, { ...msg }]
-  })
-})
+      setMessages((prev) => [...prev, { ...msg }])
+    })
 
     socket.on("roomUsers", (users) => {
       console.log("🟢 USERS:", users)
-      setUsers(users)
+      setUsers([...users])
     })
 
     socket.on("debug", (data) => {
@@ -70,10 +68,7 @@ export default function EventRoom() {
     })
 
     return () => {
-      socket.off("loadMessages")
-      socket.off("newMessage")
-      socket.off("roomUsers")
-      socket.off("debug")
+      socket.off()
     }
   }, [id, user])
 
@@ -111,7 +106,6 @@ export default function EventRoom() {
 
     console.log("🚀 SENDING:", payload)
 
-    /* SHOW INSTANTLY */
     setMessages((prev) => [...prev, { ...payload }])
 
     socket.emit("sendMessage", payload)
@@ -187,33 +181,33 @@ export default function EventRoom() {
 
       <button onClick={logout}>Logout</button>
 
-{/* USERS */}
-<div style={{
-  marginTop: 10,
-  padding: 10,
-  border: "1px solid #1e293b",
-  borderRadius: 10
-}}>
-  <strong>🟢 Live Users ({users.length})</strong>
+      {/* USERS */}
+      <div style={{
+        marginTop: 10,
+        padding: 10,
+        border: "1px solid #1e293b",
+        borderRadius: 10
+      }}>
+        <strong>🟢 Live Users ({users.length})</strong>
 
-  <div style={{ marginTop: 5 }}>
-    {users.map((u) => (
-      <span
-        key={u.socketId} // 🔥 FIXED KEY
-        style={{
-          marginRight: 10,
-          padding: "4px 8px",
-          borderRadius: 6,
-          background: "#0f172a",
-          border: "1px solid #1e293b",
-          fontSize: 12
-        }}
-      >
-        {u.username}
-      </span>
-    ))}
-  </div>
-</div>
+        <div style={{ marginTop: 5 }}>
+          {users.map((u) => (
+            <span
+              key={u.socketId}
+              style={{
+                marginRight: 10,
+                padding: "4px 8px",
+                borderRadius: 6,
+                background: "#0f172a",
+                border: "1px solid #1e293b",
+                fontSize: 12
+              }}
+            >
+              {u.username}
+            </span>
+          ))}
+        </div>
+      </div>
 
       {/* FILTER */}
       <select onChange={(e) => setFilter(e.target.value)}>
@@ -235,7 +229,7 @@ export default function EventRoom() {
       }}>
         {filteredMessages.map((m, i) => (
           <div
-            key={i}
+            key={m._id || m.createdAt + i}
             style={{
               display: "flex",
               justifyContent:
