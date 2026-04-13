@@ -1,8 +1,10 @@
 import { io } from "socket.io-client"
 
 const socket = io(import.meta.env.VITE_API_URL, {
-  transports: ["websocket", "polling"],
-  withCredentials: true
+  transports: ["polling", "websocket"], // 👈 polling FIRST
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000
 })
 
 export default socket
