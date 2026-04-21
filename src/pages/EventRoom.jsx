@@ -1,244 +1,333 @@
 import { useParams } from "react-router-dom"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import socket from "../services/socket"
-import EventQRCode from "../components/EventQRCode"
+
+/* 🔥 COLOR GENERATOR */
+const getUserColor = (name) => {
+  if (!name) return "#38bdf8"
+
+  const colors = [
+    "#38bdf8",
+    "#22c55e",
+    "#f59e0b",
+    "#ef4444",
+    "#a855f7",
+    "#14b8a6",
+    "#f472b6"
+  ]
+
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  return colors[Math.abs(hash) % colors.length]
+}
 
 export default function EventRoom() {
   const { id } = useParams()
 
-  const user = JSON.parse(localStorage.getItem("venex_user"))
-  const token = localStorage.getItem("venex_token")
+  /* 🔥 SAFE USER */
+  const user = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("venex_user"))
+    } catch (err) {
+      console.error(err)
+      return null
+    }
+  }, [])
+
+  const token = useMemo(() => {
+    return localStorage.getItem("venex_token")
+  }, [])
+
+  /* 🔥 FIXED GUEST LOAD (NO useEffect) */
+  const [guest, setGuest] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("venex_guest"))
+    } catch (err) {
+      console.error("Guest load error:", err)
+      return null
+    }
+  })
 
   const [messages, setMessages] = useState([])
-  const [users, setUsers] = useState([])
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [products, setProducts] = useState([])
-
   const [input, setInput] = useState("")
-  const [type, setType] = useState("general")
+  const [activeCategory, setActiveCategory] = useState("all")
+
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: ""
+  })
 
   const bottomRef = useRef(null)
+  const joinedRef = useRef(false)
 
-  /* 🔥 SOCKET CONNECTION (FINAL FIX) */
+  const isLocked = !user && !guest
+
+  const currentName =
+    user?.username || (guest && `${guest.firstName} ${guest.lastName}`)
+
+  /* ================= SOCKET ================= */
   useEffect(() => {
-    if (!user || !id || !token) return
+    if (!id) return
 
-    console.log("🔥 INIT SOCKET")
+    if (!socket.connected) socket.connect()
 
-    const join = () => {
-      console.log("📡 Joining room:", id)
+    if (!joinedRef.current && (user || guest)) {
+      const username =
+        user?.username || `${guest.firstName} ${guest.lastName}`
 
       socket.emit("joinRoom", {
         room: id,
-        username: user.username,
-        role: user.role,
-        token // ✅ CRITICAL
+        username,
+        role: user?.role || "guest",
+        token
       })
+
+      joinedRef.current = true
     }
 
-    if (socket.connected) {
-      join()
-    } else {
-      socket.connect()
-      socket.on("connect", join)
-    }
+    const handleLoad = (msgs) => setMessages(msgs || [])
+    const handleNew = (msg) => setMessages(prev => [...prev, msg])
 
-    const handleLoadMessages = (msgs) => {
-      console.log("📦 Loaded:", msgs)
-      setMessages(msgs || [])
-    }
+    socket.off("loadMessages", handleLoad)
+    socket.off("newMessage", handleNew)
 
-    const handleNewMessage = (msg) => {
-      console.log("💬 Incoming:", msg)
-      if (msg.room !== id) return
-      setMessages(prev => [...prev, msg])
-    }
-
-    const handleUsers = (u) => {
-      console.log("👥 Users:", u)
-      setUsers(u || [])
-    }
-
-    socket.off("loadMessages")
-    socket.off("newMessage")
-    socket.off("roomUsers")
-
-    socket.on("loadMessages", handleLoadMessages)
-    socket.on("newMessage", handleNewMessage)
-    socket.on("roomUsers", handleUsers)
+    socket.on("loadMessages", handleLoad)
+    socket.on("newMessage", handleNew)
 
     return () => {
-      socket.off("connect", join)
-      socket.off("loadMessages", handleLoadMessages)
-      socket.off("newMessage", handleNewMessage)
-      socket.off("roomUsers", handleUsers)
+      socket.off("loadMessages", handleLoad)
+      socket.off("newMessage", handleNew)
+      joinedRef.current = false
     }
+  }, [id, user, guest, token])
 
-  }, [id, user, token])
-
-  /* AUTO SCROLL */
+  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  /* PRODUCTS */
-  const loadProducts = async (vendorId) => {
+  /* ================= FILTER ================= */
+  const filteredMessages =
+    activeCategory === "all"
+      ? messages
+      : messages.filter(m => m.category === activeCategory)
+
+  /* ================= GUEST SUBMIT ================= */
+  const handleGuestSubmit = async () => {
+    if (!form.firstName || !form.lastName || !form.email) {
+      return alert("Fill all fields")
+    }
+
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/products/${vendorId}`
-      )
-      const data = await res.json()
-      setProducts(data)
+      await fetch(`${import.meta.env.VITE_API_URL}/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ...form,
+          eventId: id
+        })
+      })
+
+      localStorage.setItem("venex_guest", JSON.stringify(form))
+      setGuest(form)
+
+      /* 🔥 SYSTEM MESSAGE */
+      setMessages(prev => [
+        ...prev,
+        {
+          username: "System",
+          text: `Welcome ${form.firstName} 👋`,
+          category: "general"
+        }
+      ])
+
     } catch (err) {
       console.error(err)
+      alert("Failed to enter event")
     }
   }
 
-  /* SEND MESSAGE */
+  /* ================= SEND ================= */
   const sendMessage = () => {
-    if (!input.trim()) return
-
-    console.log("📤 Sending:", input)
+    if (!input.trim() || isLocked) return
 
     socket.emit("sendMessage", {
       room: id,
-      username: user.username,
-      role: user.role,
+      username: currentName,
+      role: user?.role || "guest",
       text: input,
-      type,
-      category: type
+      category: activeCategory === "all" ? "general" : activeCategory
     })
 
     setInput("")
   }
 
-  const getRoleColor = (role) => {
-    if (role === "vendor") return "#22c55e"
-    if (role === "coordinator") return "#a855f7"
-    return "#3b82f6"
-  }
-
-  if (!user) {
-    return <div style={{ padding: 40 }}>Login required</div>
-  }
-
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#020617", color: "white" }}>
+    <div style={{
+      height: "100vh",
+      display: "flex",
+      justifyContent: "center",
+      background: "#020617"
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: 700,
+        display: "flex",
+        flexDirection: "column",
+        padding: 20
+      }}>
 
-      {/* USERS */}
-      <div style={{ width: 220, borderRight: "1px solid #1e293b", padding: 15 }}>
-        <h3>👥 Users</h3>
+        <h2 style={{ textAlign: "center" }}>
+          🔥 Event: {id}
+        </h2>
 
-        {users.map(u => (
-          <div
-            key={u.socketId}
-            onClick={() => {
-              setSelectedUser(u)
-              if (u.role === "vendor" && u.userId) {
-                loadProducts(u.userId)
+        {/* 🔒 LOCKED */}
+        {isLocked ? (
+          <div style={{
+            marginTop: 30,
+            background: "#0f172a",
+            padding: 20,
+            borderRadius: 12
+          }}>
+            <h3>Enter Event</h3>
+
+            <input
+              placeholder="First Name"
+              value={form.firstName}
+              onChange={(e) =>
+                setForm({ ...form, firstName: e.target.value })
               }
-            }}
-            style={{ cursor: "pointer", marginBottom: 8, color: getRoleColor(u.role) }}
-          >
-            {u.username}
-          </div>
-        ))}
-      </div>
+              style={inputStyle}
+            />
 
-      {/* CHAT */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <input
+              placeholder="Last Name"
+              value={form.lastName}
+              onChange={(e) =>
+                setForm({ ...form, lastName: e.target.value })
+              }
+              style={inputStyle}
+            />
 
-        <div style={{
-          padding: 15,
-          borderBottom: "1px solid #1e293b",
-          display: "flex",
-          justifyContent: "space-between"
-        }}>
-          <strong>🔥 {id}</strong>
+            <input
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value })
+              }
+              style={inputStyle}
+            />
 
-          <div>
-            [{user.role}] {user.username}
-            <button
-              onClick={() => {
-                localStorage.clear()
-                window.location.href = "/login"
-              }}
-              style={{ marginLeft: 10 }}
-            >
-              Logout
+            <button onClick={handleGuestSubmit} style={btnPrimary}>
+              Enter Chat
             </button>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* CATEGORY */}
+            <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+              {["all", "general", "vendors", "deals", "announcements"].map(cat => (
+                <button key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 20,
+                    border: "none",
+                    background: activeCategory === cat ? "#38bdf8" : "#0f172a",
+                    color: activeCategory === cat ? "black" : "white"
+                  }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
 
-        <div style={{ padding: 10 }}>
-          <EventQRCode eventId={id} />
-        </div>
+            {/* CHAT */}
+            <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+              {filteredMessages.map((m, i) => {
+                const isMe = m.username === currentName
+                const color = getUserColor(m.username)
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 15 }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{
-              marginBottom: 10,
+                return (
+                  <div key={i} style={{
+                    display: "flex",
+                    justifyContent: isMe ? "flex-end" : "flex-start",
+                    marginBottom: 10
+                  }}>
+                    <div style={{
+                      minWidth: 120,
+                      maxWidth: "70%",
+                      padding: 10,
+                      borderRadius: 12,
+                      background: isMe ? color : "#0f172a",
+                      color: isMe ? "black" : "white",
+                      boxShadow: `0 0 10px ${color}55`
+                    }}>
+                      <div style={{ fontSize: 12 }}>
+                        {m.username}
+                      </div>
+                      <div>{m.text}</div>
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* INPUT */}
+            <div style={{
+              display: "flex",
+              marginTop: 10,
+              gap: 10,
               background: "#0f172a",
               padding: 10,
-              borderRadius: 10
+              borderRadius: 12
             }}>
-              <div style={{ fontSize: 12 }}>
-                [{m.role}] {m.username}
-              </div>
-              <div>{m.text}</div>
+              <input
+                style={{
+                  flex: 1,
+                  background: "transparent",
+                  border: "none",
+                  color: "white",
+                  outline: "none"
+                }}
+                value={input}
+                placeholder="Type a message..."
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              />
+
+              <button onClick={sendMessage} style={btnPrimary}>
+                Send
+              </button>
             </div>
-          ))}
-          <div ref={bottomRef} />
-        </div>
-
-        <div style={{ display: "flex", padding: 10, borderTop: "1px solid #1e293b" }}>
-          <input
-            style={{ flex: 1 }}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-
-          <select onChange={(e) => setType(e.target.value)}>
-            <option value="general">General</option>
-            <option value="product">Product</option>
-            <option value="service">Service</option>
-          </select>
-
-          <button onClick={sendMessage}>Send</button>
-        </div>
-      </div>
-
-      {/* MARKET */}
-      <div style={{ width: 260, borderLeft: "1px solid #1e293b", padding: 15 }}>
-        <h3>🛍 Marketplace</h3>
-
-        {selectedUser ? (
-          <>
-            <p>Viewing: {selectedUser.username}</p>
-
-            {products.length === 0 ? (
-              <p>No products</p>
-            ) : (
-              products.map(p => (
-                <div key={p._id} style={{
-                  marginBottom: 10,
-                  border: "1px solid #1e293b",
-                  padding: 10,
-                  borderRadius: 10
-                }}>
-                  <strong>{p.name}</strong>
-                  <p>${p.price}</p>
-                  <p>{p.description}</p>
-                </div>
-              ))
-            )}
           </>
-        ) : (
-          <p>Click a vendor</p>
         )}
       </div>
-
     </div>
   )
+}
+
+/* STYLES */
+const inputStyle = {
+  width: "100%",
+  padding: 10,
+  marginTop: 8,
+  borderRadius: 8,
+  border: "none"
+}
+
+const btnPrimary = {
+  marginTop: 10,
+  padding: "10px 14px",
+  background: "#38bdf8",
+  border: "none",
+  borderRadius: 10,
+  cursor: "pointer",
+  fontWeight: "bold"
 }

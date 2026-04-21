@@ -1,11 +1,11 @@
 import { QRCodeCanvas } from "qrcode.react"
 
 export default function ChatQRCode() {
-  const url = `${window.location.origin}/chat`
+  const url = "https://client-venex.vercel.app/"
 
   return (
     <div style={{ textAlign: "center", marginTop: 20 }}>
-      <h3>📲 Scan to Join Chat</h3>
+      <h3>📲 Scan to Enter Venex</h3>
 
       <QRCodeCanvas value={url} size={160} />
 

@@ -1,56 +1,60 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 
-/* PAGES */
+import Navbar from "./components/Navbar"
+
+/* 🏠 CORE */
 import Home from "./pages/Home"
-import EventRoom from "./pages/EventRoom"
-import CreateEvent from "./pages/CreateEvent"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 import VendorDashboard from "./pages/VendorDashboard"
 
-/* 🔐 PROTECTED ROUTE */
-import ProtectedRoute from "./components/ProtectedRoute"
+/* 👑 ADMIN */
+import AdminDashboard from "./pages/AdminDashboard"
+import AdminRoute from "./routes/AdminRoute"
+
+/* 💬 CHAT */
+import LiveChat from "./pages/chat/LiveChat"
+
+/* 📅 EVENTS */
+import Events from "./pages/events/Events"
+import EventDetail from "./pages/events/EventDetail"
 
 export default function App() {
   return (
     <BrowserRouter>
+      <Navbar />
+
       <Routes>
 
-        {/* 🏠 PUBLIC */}
+        {/* 🏠 HOME */}
         <Route path="/" element={<Home />} />
+
+        {/* 🔥 FIXED QR REDIRECT */}
+        <Route path="/chat" element={<Navigate to="/" replace />} />
+
+        {/* 📅 EVENTS */}
+        <Route path="/events" element={<Events />} />
+        <Route path="/event/:id" element={<EventDetail />} />
+
+        {/* 🔐 AUTH */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* 🔐 PROTECTED */}
-        <Route
-          path="/create-event"
-          element={
-            <ProtectedRoute>
-              <CreateEvent />
-            </ProtectedRoute>
-          }
-        />
+        {/* 🧑‍💼 VENDOR */}
+        <Route path="/dashboard" element={<VendorDashboard />} />
 
+        {/* 👑 ADMIN (PROTECTED) */}
         <Route
-          path="/event/:id"
+          path="/admin"
           element={
-            <ProtectedRoute>
-              <EventRoom />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <VendorDashboard />
-            </ProtectedRoute>
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
           }
         />
 
         {/* 🚫 FALLBACK */}
-        <Route path="*" element={<div style={{ padding: 40 }}>404 Not Found</div>} />
+        <Route path="*" element={<Home />} />
 
       </Routes>
     </BrowserRouter>
