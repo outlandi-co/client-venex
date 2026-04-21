@@ -53,7 +53,7 @@ export default function Home() {
         email: ""
       })
 
-      navigate("/events")
+      navigate("/chat")
     } catch (err) {
       console.error("SUBSCRIBE ERROR:", err)
       alert("❌ Failed to subscribe.")
