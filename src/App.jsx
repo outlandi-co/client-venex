@@ -29,12 +29,14 @@ export default function App() {
         {/* 🏠 HOME */}
         <Route path="/" element={<Home />} />
 
-        {/* 🔥 FIXED QR REDIRECT */}
-        <Route path="/chat" element={<Navigate to="/" replace />} />
+        {/* 🔥 FIX: QR EVENT REDIRECT */}
+        <Route path="/event/:id" element={<Navigate to="/" replace />} />
 
-        {/* 📅 EVENTS */}
+        {/* (optional keep list page) */}
         <Route path="/events" element={<Events />} />
-        <Route path="/event/:id" element={<EventDetail />} />
+
+        {/* 🔥 OPTIONAL: CHAT FIX */}
+        <Route path="/chat" element={<Navigate to="/" replace />} />
 
         {/* 🔐 AUTH */}
         <Route path="/login" element={<Login />} />
@@ -43,7 +45,7 @@ export default function App() {
         {/* 🧑‍💼 VENDOR */}
         <Route path="/dashboard" element={<VendorDashboard />} />
 
-        {/* 👑 ADMIN (PROTECTED) */}
+        {/* 👑 ADMIN */}
         <Route
           path="/admin"
           element={
