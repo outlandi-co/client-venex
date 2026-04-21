@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 
 import Navbar from "./components/Navbar"
 
@@ -31,9 +31,12 @@ export default function App() {
         {/* 💬 CHAT */}
         <Route path="/chat" element={<LiveChat />} />
 
-        {/* 📅 EVENTS */}
-        <Route path="/events" element={<Events />} />
-        <Route path="/event/:id" element={<EventDetail />} />
+        {/* 🔥 QR FIX: redirect old QR routes */}
+        <Route path="/events" element={<Navigate to="/" replace />} />
+        <Route path="/event/:id" element={<Navigate to="/" replace />} />
+
+        {/* 📅 OPTIONAL: keep events page under new path */}
+        <Route path="/all-events" element={<Events />} />
 
         {/* 🔐 AUTH */}
         <Route path="/login" element={<Login />} />
