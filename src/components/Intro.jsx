@@ -1,34 +1,34 @@
-import { useState } from "react"
+import { useRef, useEffect } from "react"
 
 export default function Intro({ onFinish }) {
-  const [fade, setFade] = useState(false)
+  const videoRef = useRef(null)
 
-  const handleEnded = () => {
-    // start fade AFTER video finishes
-    setFade(true)
+  useEffect(() => {
+    const video = videoRef.current
 
-    setTimeout(() => {
-      try {
-        localStorage.setItem("venex_intro_seen", "true")
-      } catch (err) {
-        console.warn("localStorage error:", err)
+    if (video) {
+      // force play (helps with browser autoplay quirks)
+      const playPromise = video.play()
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn("Autoplay prevented:", err)
+        })
       }
-
-      onFinish()
-    }, 2000) // 👈 2 second fade
-  }
+    }
+  }, [])
 
   return (
-    <div className={`intro-container ${fade ? "fade-out" : ""}`}>
+    <div className="intro-container">
       <video
+        ref={videoRef}
         autoPlay
         muted
         playsInline
         preload="auto"
         className="intro-video"
-        onEnded={handleEnded} // 🔥 THIS IS THE KEY
+        onEnded={onFinish} // 👈 go to app after video ends
       >
-        <source src="/venex-intro.mp4" type="video/mp4" />
+        <source src="/intro.mp4" type="video/mp4" />
       </video>
     </div>
   )
