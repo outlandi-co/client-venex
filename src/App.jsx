@@ -1,8 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { useState, useCallback, useEffect } from "react"
 
 import Navbar from "./components/Navbar"
-import Intro from "./components/Intro"
 
 /* 🏠 CORE */
 import Home from "./pages/Home"
@@ -19,43 +17,8 @@ import LiveChat from "./pages/chat/LiveChat"
 
 /* 📅 EVENTS */
 import Events from "./pages/events/Events"
-import EventDetail from "./pages/events/EventDetail"
 
 export default function App() {
-  // 🔥 force intro for now
-  const [showIntro, setShowIntro] = useState(true)
-
-  // ✅ finish intro handler
-  const handleFinishIntro = useCallback(() => {
-    console.log("Intro finished → loading app")
-
-    try {
-      localStorage.setItem("venex_intro_seen", "true")
-    } catch (err) {
-      console.warn("localStorage failed:", err)
-    }
-
-    setShowIntro(false)
-  }, [])
-
-  // 🛟 SAFETY FALLBACK (in case video never fires onEnded)
-  useEffect(() => {
-    if (!showIntro) return
-
-    const fallback = setTimeout(() => {
-      console.warn("Fallback triggered → forcing app load")
-      setShowIntro(false)
-    }, 5000) // slightly longer than video
-
-    return () => clearTimeout(fallback)
-  }, [showIntro])
-
-  // 🎬 SHOW INTRO FIRST
-  if (showIntro) {
-    return <Intro onFinish={handleFinishIntro} />
-  }
-
-  // 🚀 LOAD APP AFTER
   return (
     <BrowserRouter>
       <Navbar />
@@ -64,7 +27,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chat" element={<LiveChat />} />
 
-        {/* 🔥 QR FIX */}
+        {/* QR redirect */}
         <Route path="/events" element={<Navigate to="/" replace />} />
         <Route path="/event/:id" element={<Navigate to="/" replace />} />
 
