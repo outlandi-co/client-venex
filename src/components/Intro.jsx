@@ -7,13 +7,8 @@ export default function Intro({ onFinish }) {
     const video = videoRef.current
 
     if (video) {
-      // force play (helps with browser autoplay quirks)
-      const playPromise = video.play()
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn("Autoplay prevented:", err)
-        })
-      }
+      video.muted = true
+      video.play().catch(() => {})
     }
   }, [])
 
@@ -26,7 +21,7 @@ export default function Intro({ onFinish }) {
         playsInline
         preload="auto"
         className="intro-video"
-        onEnded={onFinish} // 👈 go to app after video ends
+        onEnded={onFinish} // 👈 THIS reveals the app
       >
         <source src="/intro.mp4" type="video/mp4" />
       </video>

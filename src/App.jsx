@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 
 import Navbar from "./components/Navbar"
 import Intro from "./components/Intro"
@@ -22,11 +22,12 @@ import Events from "./pages/events/Events"
 import EventDetail from "./pages/events/EventDetail"
 
 export default function App() {
-  // 🔥 FORCE INTRO (ignore localStorage temporarily)
+  // 🔥 force intro for now
   const [showIntro, setShowIntro] = useState(true)
 
+  // ✅ finish intro handler
   const handleFinishIntro = useCallback(() => {
-    console.log("Intro finished")
+    console.log("Intro finished → loading app")
 
     try {
       localStorage.setItem("venex_intro_seen", "true")
@@ -37,11 +38,24 @@ export default function App() {
     setShowIntro(false)
   }, [])
 
-  // 🔥 FORCE RENDER INTRO FIRST
+  // 🛟 SAFETY FALLBACK (in case video never fires onEnded)
+  useEffect(() => {
+    if (!showIntro) return
+
+    const fallback = setTimeout(() => {
+      console.warn("Fallback triggered → forcing app load")
+      setShowIntro(false)
+    }, 5000) // slightly longer than video
+
+    return () => clearTimeout(fallback)
+  }, [showIntro])
+
+  // 🎬 SHOW INTRO FIRST
   if (showIntro) {
     return <Intro onFinish={handleFinishIntro} />
   }
 
+  // 🚀 LOAD APP AFTER
   return (
     <BrowserRouter>
       <Navbar />
