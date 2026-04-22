@@ -4,27 +4,37 @@ export default function Intro({ onFinish }) {
   const videoRef = useRef(null)
 
   useEffect(() => {
-    const v = videoRef.current
-    if (!v) return
+    const video = videoRef.current
 
-    v.muted = true
-    v.play().catch(() => {
-      // if autoplay fails, try once more shortly after
-      setTimeout(() => v.play().catch(() => {}), 500)
-    })
+    if (video) {
+      video.muted = true
+
+      // wait until video is ready before playing
+      video.oncanplaythrough = () => {
+        video.play()
+      }
+    }
   }, [])
 
   return (
-    <div style={{ background: "black", height: "100vh" }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "black",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}
+    >
       <video
         ref={videoRef}
-        autoPlay
         muted
         playsInline
         preload="auto"
-        onLoadedData={() => videoRef.current?.play()}
+        style={{ width: "80%", maxWidth: "800px" }}
         onEnded={onFinish}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
       >
         <source src="/intro.mp4" type="video/mp4" />
       </video>
