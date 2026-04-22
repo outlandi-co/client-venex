@@ -5,14 +5,17 @@ export default function Intro({ onFinish }) {
 
   useEffect(() => {
     const video = videoRef.current
+    if (!video) return
 
-    if (video) {
-      video.muted = true
+    video.muted = true
 
-      // wait until video is ready before playing
-      video.oncanplaythrough = () => {
-        video.play()
-      }
+    // Force reload + play
+    video.load()
+
+    video.onloadeddata = () => {
+      video.play().catch((err) => {
+        console.warn("Play failed:", err)
+      })
     }
   }, [])
 
@@ -24,16 +27,18 @@ export default function Intro({ onFinish }) {
         background: "black",
         zIndex: 9999,
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
+        alignItems: "center"
       }}
     >
       <video
         ref={videoRef}
-        muted
-        playsInline
-        preload="auto"
-        style={{ width: "80%", maxWidth: "800px" }}
+        controls
+        style={{
+          width: "600px",
+          height: "auto",
+          background: "black"
+        }}
         onEnded={onFinish}
       >
         <source src="/intro.mp4" type="video/mp4" />
