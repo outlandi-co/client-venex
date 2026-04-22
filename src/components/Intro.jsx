@@ -4,21 +4,24 @@ export default function Intro({ onFinish }) {
   const [fade, setFade] = useState(false)
 
   useEffect(() => {
-    // 🔥 Wait full 3 seconds (let intro play fully)
-    const playTimer = setTimeout(() => {
-      setFade(true) // start fade AFTER intro finishes
-    }, 3000)
+    let finished = false
 
-    // 🔥 Fade duration = 2 seconds
-    const endTimer = setTimeout(() => {
-      localStorage.setItem("venex_intro_seen", "true")
-      onFinish()
-    }, 5000) // 3s play + 2s fade
+    const finish = () => {
+      if (finished) return
+      finished = true
 
-    return () => {
-      clearTimeout(playTimer)
-      clearTimeout(endTimer)
+      setFade(true)
+
+      setTimeout(() => {
+        localStorage.setItem("venex_intro_seen", "true")
+        onFinish()
+      }, 2000) // 👈 EXACT fade duration
     }
+
+    // 🔥 Force full play time (3 seconds)
+    const timer = setTimeout(finish, 3000)
+
+    return () => clearTimeout(timer)
   }, [onFinish])
 
   return (

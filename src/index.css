@@ -131,5 +131,5 @@ code {
 /* 👇 THIS is your 2 second fade */
 .fade-out {
   opacity: 0;
-  transition: opacity 2s ease;
+  transition: opacity 10s ease;
 }
