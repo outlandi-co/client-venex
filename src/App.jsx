@@ -22,25 +22,22 @@ import Events from "./pages/events/Events"
 import EventDetail from "./pages/events/EventDetail"
 
 export default function App() {
-  const [showIntro, setShowIntro] = useState(() => {
-    try {
-      return !localStorage.getItem("venex_intro_seen")
-    } catch (err) {
-      console.warn("localStorage not available:", err)
-      return true
-    }
-  })
+  // 🔥 FORCE INTRO (ignore localStorage temporarily)
+  const [showIntro, setShowIntro] = useState(true)
 
   const handleFinishIntro = useCallback(() => {
+    console.log("Intro finished")
+
     try {
       localStorage.setItem("venex_intro_seen", "true")
     } catch (err) {
-      console.warn("Failed to save intro state:", err)
+      console.warn("localStorage failed:", err)
     }
 
     setShowIntro(false)
   }, [])
 
+  // 🔥 FORCE RENDER INTRO FIRST
   if (showIntro) {
     return <Intro onFinish={handleFinishIntro} />
   }
