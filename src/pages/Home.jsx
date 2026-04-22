@@ -1,16 +1,24 @@
 import { Link, useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import api from "../services/api"
 
 export default function Home() {
   const navigate = useNavigate()
+
+  const [loaded, setLoaded] = useState(false)
 
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
     email: ""
   })
+
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoaded(true), 100)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -47,6 +55,7 @@ export default function Home() {
       )
 
       alert("✅ Subscription successful! You can now browse events and join live chat.")
+
       setForm({
         firstName: "",
         lastName: "",
@@ -63,7 +72,18 @@ export default function Home() {
   }
 
   return (
-    <div style={wrapper}>
+    <div
+      style={{
+        ...wrapper,
+        opacity: loaded ? 1 : 0,
+        transition: "opacity 0.6s ease"
+      }}
+    >
+      {/* 🔥 LOGO CENTER (matches intro ending) */}
+      <div style={heroLogo}>
+        <img src="/venex-logo.png" alt="VENEX" style={logoImg} />
+      </div>
+
       <div style={container}>
         <h1 style={title}>🔥 Venex</h1>
 
@@ -84,7 +104,7 @@ export default function Home() {
             {loading ? "Submitting..." : "Subscribe & Continue"}
           </button>
 
-          <Link to="/events" style={secondaryCTA}>
+          <Link to="/all-events" style={secondaryCTA}>
             📅 Browse Events
           </Link>
         </div>
@@ -131,7 +151,7 @@ export default function Home() {
   )
 }
 
-/* STYLES */
+/* 🔥 STYLES */
 
 const wrapper = {
   minHeight: "100vh",
@@ -140,13 +160,28 @@ const wrapper = {
   justifyContent: "center",
   alignItems: "center",
   padding: 20,
-  color: "white"
+  color: "white",
+  position: "relative"
+}
+
+const heroLogo = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%) scale(1.2)",
+  opacity: 0,
+  animation: "logoEnter 0.8s ease forwards"
+}
+
+const logoImg = {
+  width: 120
 }
 
 const container = {
   maxWidth: 500,
   width: "100%",
-  textAlign: "center"
+  textAlign: "center",
+  zIndex: 2
 }
 
 const title = {
@@ -177,7 +212,6 @@ const primaryCTAButton = {
   padding: "14px",
   background: "#38bdf8",
   borderRadius: 10,
-  textAlign: "center",
   color: "black",
   fontWeight: "bold",
   border: "none",
@@ -189,7 +223,6 @@ const secondaryCTA = {
   padding: "12px",
   background: "#0f172a",
   borderRadius: 10,
-  textAlign: "center",
   color: "white",
   textDecoration: "none"
 }
@@ -204,10 +237,8 @@ const subscribeBox = {
 const input = {
   width: "100%",
   padding: 12,
-  marginTop: 4,
   borderRadius: 6,
-  border: "none",
-  boxSizing: "border-box"
+  border: "none"
 }
 
 const subscribeBtn = {

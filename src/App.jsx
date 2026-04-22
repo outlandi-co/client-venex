@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useState, useCallback } from "react"
 
 import Navbar from "./components/Navbar"
+import Intro from "./components/Intro"
 
 /* 🏠 CORE */
 import Home from "./pages/Home"
@@ -20,32 +22,48 @@ import Events from "./pages/events/Events"
 import EventDetail from "./pages/events/EventDetail"
 
 export default function App() {
+  const [showIntro, setShowIntro] = useState(() => {
+    try {
+      return !localStorage.getItem("venex_intro_seen")
+    } catch (err) {
+      console.warn("localStorage not available:", err)
+      return true
+    }
+  })
+
+  const handleFinishIntro = useCallback(() => {
+    try {
+      localStorage.setItem("venex_intro_seen", "true")
+    } catch (err) {
+      console.warn("Failed to save intro state:", err)
+    }
+
+    setShowIntro(false)
+  }, [])
+
+  if (showIntro) {
+    return <Intro onFinish={handleFinishIntro} />
+  }
+
   return (
     <BrowserRouter>
       <Navbar />
 
       <Routes>
-        {/* 🏠 HOME */}
         <Route path="/" element={<Home />} />
-
-        {/* 💬 CHAT */}
         <Route path="/chat" element={<LiveChat />} />
 
-        {/* 🔥 QR FIX: redirect old QR routes */}
+        {/* 🔥 QR FIX */}
         <Route path="/events" element={<Navigate to="/" replace />} />
         <Route path="/event/:id" element={<Navigate to="/" replace />} />
 
-        {/* 📅 OPTIONAL: keep events page under new path */}
         <Route path="/all-events" element={<Events />} />
 
-        {/* 🔐 AUTH */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* 🧑‍💼 VENDOR */}
         <Route path="/dashboard" element={<VendorDashboard />} />
 
-        {/* 👑 ADMIN */}
         <Route
           path="/admin"
           element={
@@ -55,7 +73,6 @@ export default function App() {
           }
         />
 
-        {/* 🚫 FALLBACK */}
         <Route path="*" element={<Home />} />
       </Routes>
     </BrowserRouter>
