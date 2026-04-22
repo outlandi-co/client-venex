@@ -7,15 +7,20 @@ export default function Intro({ onFinish }) {
     const video = videoRef.current
     if (!video) return
 
-    video.muted = true
+    const startVideo = async () => {
+      try {
+        video.muted = true
+        await video.play()
+      } catch (err) {
+        console.warn("Autoplay blocked, waiting for interaction...", err)
+      }
+    }
 
-    // Force reload + play
-    video.load()
+    // Wait until browser is ready
+    video.addEventListener("canplaythrough", startVideo)
 
-    video.onloadeddata = () => {
-      video.play().catch((err) => {
-        console.warn("Play failed:", err)
-      })
+    return () => {
+      video.removeEventListener("canplaythrough", startVideo)
     }
   }, [])
 
@@ -33,13 +38,14 @@ export default function Intro({ onFinish }) {
     >
       <video
         ref={videoRef}
+        muted
+        playsInline
         controls
-        style={{
-          width: "600px",
-          height: "auto",
-          background: "black"
-        }}
         onEnded={onFinish}
+        style={{
+          width: "80%",
+          maxWidth: "800px"
+        }}
       >
         <source src="/intro.mp4" type="video/mp4" />
       </video>
